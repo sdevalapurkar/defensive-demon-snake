@@ -22,14 +22,26 @@ router.post('/move', function (req, res) {
   var generatedMove = undefined
   var cornerMove = checkCorners(req.body)
   var possibleMoves = checkWalls(req.body)
+  var body = req.body.you.body.data
 
-  if (cornerMove !== false) {
+  if (cornerMove !== false) { // we are at a corner
     generatedMove = cornerMove
   } else if (possibleMoves !== false) { // we are at a wall
-    console.log('at a wall, the possible moves are: ', possibleMoves);
+    console.log('at a wall, the possible moves are: ', possibleMoves)
     // need to check for other snakes and food to decide where to go
-  } else {
-    generatedMove = 'left';
+  } else { 
+    if (body[1].x === body[0].x - 1) { // left of my head
+      possibleMoves = ['up', 'down', 'right']
+    } else if (body[1].x === body[0].x + 1) { // right of my head
+      possibleMoves = ['left', 'up', 'down']
+    } else if (body[1].y === body[0].y - 1) { // up of my head
+      possibleMoves = ['left', 'down', 'right']
+    } else if (body[1].y === body[0].y + 1) { // down of my head
+      possibleMoves = ['left', 'right', 'up']
+    } else {
+      possibleMoves = ['up', 'down', 'left', 'right']
+      generatedMove = 'left'
+    }
   }
 
   // Response data
@@ -85,7 +97,7 @@ function checkWalls(data) {
       return ['up', 'left', 'right']
     }
   } else {
-    return false;
+    return false
   }
 }
 
@@ -116,7 +128,7 @@ function checkCorners(data) {
       return 'up'
     }
   } else {
-    return false;
+    return false
   }
 }
 

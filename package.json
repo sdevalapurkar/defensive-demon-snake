@@ -3,7 +3,7 @@
   "description": "A simple BattleSnake AI written in Javascript for NodeJS",
   "version": "0.0.0",
   "private": true,
-  "author": "Sendwithus",
+  "author": "Shreyas Devalapurkar",
   "repository": "https://github.com/sendwithus/battlesnake-node",
   "licenses": [
     {
@@ -14,7 +14,8 @@
   "dependencies": {
     "body-parser": "^1.18.2",
     "express": "^4.16.2",
-    "morgan": "^1.9.0"
+    "morgan": "^1.9.0",
+    "pathfinding": "^0.4.18"
   },
   "devDependencies": {
     "foreman": "^2.0.0",

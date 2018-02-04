@@ -1,5 +1,6 @@
 var express = require('express')
 var router  = express.Router()
+var PF = require('pathfinding')
 
 // Handle POST request to '/start'
 router.post('/start', function (req, res) {
@@ -23,12 +24,15 @@ router.post('/move', function (req, res) {
   var cornerMove = checkCorners(req.body)
   var possibleMoves = checkWalls(req.body)
   var body = req.body.you.body.data
+  var grid = new PF.Grid(req.body.width, req.body.height)
 
   if (cornerMove !== false) { // we are at a corner
     generatedMove = cornerMove
   } else if (possibleMoves !== false) { // we are at a wall
-    console.log('at a wall, the possible moves are: ', possibleMoves)
-    // need to check for other snakes and food to decide where to go
+    if (req.body.you.health < 95) {
+      var foodMove = foodSearch(req.body, possibleMoves, grid)
+      generatedMove = foodMove
+    }
   } else { 
     if (body[1].x === body[0].x - 1) { // left of my head
       possibleMoves = ['up', 'down', 'right']
@@ -40,18 +44,52 @@ router.post('/move', function (req, res) {
       possibleMoves = ['left', 'right', 'up']
     } else {
       possibleMoves = ['up', 'down', 'left', 'right']
-      generatedMove = 'left'
+    }
+
+    if (req.body.you.health < 95) {
+      var foodMove = foodSearch(req.body, possibleMoves, grid)
+      generatedMove = foodMove
     }
   }
 
   // Response data
   var data = {
     move: generatedMove, // one of: ['up','down','left','right']
-    taunt: 'Outta my way, snake!', // optional, but encouraged!
+    taunt: 'Meet the spinmaaaaassstaaaaa', // optional, but encouraged!
   }
 
   return res.json(data)
 })
+
+function foodSearch(data, possibleMoves, grid) {
+  var foodData = data.food.data // food
+  var bodyData = data.you.body.data // body coordinates
+  var distancesToFood = []
+  var closestFood = []
+
+  foodData.forEach(function (object) {
+    distancesToFood.push(object, distance(object, bodyData[0]))
+  })
+
+  var min = distancesToFood[1]
+  var index = 0
+  var object = {}
+  for (var i = 0; i < distancesToFood.length; i++) {
+    if (i % 2 !== 0) {
+      if (distancesToFood[i] < min) {
+        min = distancesToFood[i]
+        index = i - 1
+      }
+    }
+  }
+  object = distancesToFood[index]
+  closestFood.push(min, object)
+  return closestFood // [distance to closest food, { coordinates of closest food }]
+}
+
+function distance(point1, point2) { // calculate distance between two points
+  return Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2))
+}
 
 function checkWalls(data) {
   var bodyData = data.you.body.data

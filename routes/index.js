@@ -32,12 +32,15 @@ router.post('/move', function (req, res) {
   if (cornerMove !== false) { // we are at a corner
     generatedMove = cornerMove
   } else if (possibleMoves !== false) { // we are at a wall
-    if (req.body.you.health < 95) {
+    if (req.body.you.health < 75) { // we are hungry
       closestFood = foodSearch(req.body)
       foodMove = pathToFood(closestFood, req.body, grid, possibleMoves)
       generatedMove = foodMove
+    } else { // find path to tail
+      tailMove = pathToTail(body, grid, possibleMoves)
+      generatedMove = tailMove
     }
-  } else { 
+  } else { // at start move randomly (for now)
     if (body[1].x === body[0].x - 1) { // left of my head
       possibleMoves = ['up', 'down', 'right']
     } else if (body[1].x === body[0].x + 1) { // right of my head
@@ -50,11 +53,18 @@ router.post('/move', function (req, res) {
       possibleMoves = ['up', 'down', 'left', 'right']
     }
 
-    if (req.body.you.health < 95) { 
+    if (req.body.you.health < 75) { // we are hungry
       closestFood = foodSearch(req.body)
       foodMove = pathToFood(closestFood, req.body, grid, possibleMoves)
       generatedMove = foodMove
+    } else { // find path to tail
+      tailMove = pathToTail(body, grid, possibleMoves)
+      generatedMove = tailMove
     }
+  }
+
+  if (!possibleMoves.includes(generatedMove)) {
+    generatedMove = possibleMoves[0]
   }
 
   // Response data
@@ -65,6 +75,36 @@ router.post('/move', function (req, res) {
 
   return res.json(data)
 })
+
+function pathToTail(bodyData, grid, possibleMoves) {
+  var finder = new PF.AStarFinder()
+  var gridBackup = grid.clone()
+
+  bodyData.forEach(function (object) {
+    gridBackup.setWalkableAt(object.x, object.y, false)
+  })
+  gridBackup.setWalkableAt(bodyData[0].x, bodyData[0].y, true)
+  gridBackup.setWalkableAt(bodyData[bodyData.length - 1].x, bodyData[bodyData.length - 1].y, true)
+  var path = finder.findPath(bodyData[0].x, bodyData[0].y, bodyData[bodyData.length - 1].x, bodyData[bodyData.length - 1].y, gridBackup)
+  
+  if (path[1][0] === path[0][0]) { // same x coordinates
+    if (path[1][1] !== path[0][1]) { // different y coordinates
+      if (path[1][1] < path[0][1] && possibleMoves.includes('up')) {
+        return 'up'
+      } else if (path[1][1] > path[0][1] && possibleMoves.includes('down')) {
+        return 'down'
+      }
+    }
+  } else if (path[1][1] === path[0][1]) { // same y coordinates
+    if (path[1][0] !== path[0][0]) { // different x coordinates
+      if (path[1][0] > path[0][0] && possibleMoves.includes('right')) {
+        return 'right'
+      } else if (path[1][0] < path[0][0] && possibleMoves.includes('left')) {
+        return 'left'
+      }
+    }
+  }
+}
 
 function pathToFood(closestFood, data, grid, possibleMoves) {
   var bodyData = data.you.body.data // body coordinates

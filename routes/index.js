@@ -8,11 +8,11 @@ router.post('/start', function (req, res) {
 
   // Response data
   var data = {
-    color: "#CD5C5C",
+    color: "#FFA07A",
     name: "Spinmaaaasstaaaaa",
     secondary_color: "#CD5C5C",
     head_url: "https://pbs.twimg.com/profile_images/914920708248969216/bLKIEQkS_400x400.jpg", // optional, but encouraged!
-    taunt: "Can't beat Redbrickers at ping pong", // optional, but encouraged!
+    // taunt: ["Can't beat Redbrickers at ping pong", "Meet the spinmaaaaassstaaaaa", "Let's go for a spinnnn"], // optional, but encouraged!
     tail_type: 'curled'
   }
 
@@ -22,6 +22,7 @@ router.post('/start', function (req, res) {
 // Handle POST request to '/move'
 router.post('/move', function (req, res) {
   // NOTE: Do something here to generate your move
+  var taunts = ["Can't beat Redbrickers at ping pong", "Meet the spinmaaaaassstaaaaa", "Let's go for a spinnnn"]
   var generatedMove = undefined
   var cornerMove = checkCorners(req.body)
   var possibleMoves = checkWalls(req.body)
@@ -86,7 +87,7 @@ router.post('/move', function (req, res) {
   // Response data
   var data = {
     move: generatedMove, // one of: ['up','down','left','right']
-    taunt: 'Meet the spinmaaaaassstaaaaa',
+    taunt: taunts[Math.floor(Math.random()*taunts.length)]
   }
 
   return res.json(data)

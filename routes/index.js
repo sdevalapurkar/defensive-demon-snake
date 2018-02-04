@@ -8,10 +8,12 @@ router.post('/start', function (req, res) {
 
   // Response data
   var data = {
-    color: "#DFFF00",
+    color: "#CD5C5C",
     name: "Spinmaaaasstaaaaa",
-    head_url: "http://www.placecage.com/c/200/200", // optional, but encouraged!
-    taunt: "Let's go for a spin", // optional, but encouraged!
+    secondary_color: "#CD5C5C",
+    head_url: "https://pbs.twimg.com/profile_images/914920708248969216/bLKIEQkS_400x400.jpg", // optional, but encouraged!
+    taunt: "Can't beat Redbrickers at ping pong", // optional, but encouraged!
+    tail_type: 'curled'
   }
 
   return res.json(data)
@@ -63,8 +65,21 @@ router.post('/move', function (req, res) {
     }
   }
 
+  if (body[1].x === body[0].x - 1) { // left of my head
+    possibleMoves = ['up', 'down', 'right']
+  } else if (body[1].x === body[0].x + 1) { // right of my head
+    possibleMoves = ['left', 'up', 'down']
+  } else if (body[1].y === body[0].y - 1) { // up of my head
+    possibleMoves = ['left', 'down', 'right']
+  } else if (body[1].y === body[0].y + 1) { // down of my head
+    possibleMoves = ['left', 'right', 'up']
+  } else {
+    possibleMoves = ['up', 'down', 'left', 'right']
+  }
+
   if (!possibleMoves.includes(generatedMove)) {
     generatedMove = possibleMoves[0]
+    console.log(generatedMove)
   }
 
   // Response data
@@ -110,7 +125,13 @@ function pathToFood(closestFood, data, grid, possibleMoves) {
   var bodyData = data.you.body.data // body coordinates
   var finder = new PF.AStarFinder()
   var gridBackup = grid.clone()
+
+  bodyData.forEach(function (object) {
+    gridBackup.setWalkableAt(object.x, object.y, false)
+  })
+
   var path = finder.findPath(bodyData[0].x, bodyData[0].y, closestFood[1].x, closestFood[1].y, gridBackup)
+  console.log(path);
   
   if (path[1][0] === bodyData[0].x) { // don't turn left or right
     if (path[1][1] === bodyData[0].y - 1 && possibleMoves.includes('up')) { // go up

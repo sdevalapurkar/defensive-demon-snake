@@ -40,7 +40,7 @@ router.post('/move', function (req, res) {
       tailMove = pathToTail(body, grid, possibleMoves)
       generatedMove = tailMove
     }
-  } else { // at start move randomly (for now)
+  } else {
     if (body[1].x === body[0].x - 1) { // left of my head
       possibleMoves = ['up', 'down', 'right']
     } else if (body[1].x === body[0].x + 1) { // right of my head

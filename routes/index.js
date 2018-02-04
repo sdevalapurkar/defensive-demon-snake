@@ -34,7 +34,7 @@ router.post('/move', function (req, res) {
   if (cornerMove !== false) { // we are at a corner
     generatedMove = cornerMove
   } else if (possibleMoves !== false) { // we are at a wall
-    if (req.body.you.health < 75) { // we are hungry
+    if (req.body.you.health < 45) { // we are hungry
       closestFood = foodSearch(req.body)
       foodMove = pathToFood(closestFood, req.body, grid, possibleMoves)
       generatedMove = foodMove
@@ -55,7 +55,8 @@ router.post('/move', function (req, res) {
       possibleMoves = ['up', 'down', 'left', 'right']
     }
 
-    if (req.body.you.health < 75) { // we are hungry
+    if (req.body.you.health < 45) { // we are hungry
+      console.log('not at a wall and hungry')
       closestFood = foodSearch(req.body)
       foodMove = pathToFood(closestFood, req.body, grid, possibleMoves)
       generatedMove = foodMove

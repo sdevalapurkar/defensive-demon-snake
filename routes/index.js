@@ -27,6 +27,7 @@ router.post('/move', function (req, res) {
   var cornerMove = checkCorners(req.body)
   var possibleMoves = checkWalls(req.body)
   var body = req.body.you.body.data
+  var snakes = req.body.snakes.data
   var grid = new PF.Grid(req.body.width, req.body.height)
   var closestFood = []
   var foodMove = ''
@@ -35,7 +36,7 @@ router.post('/move', function (req, res) {
   if (cornerMove !== false) { // we are at a corner
     generatedMove = cornerMove
   } else if (possibleMoves !== false) { // we are at a wall
-    if (req.body.you.health < 45) { // we are hungry
+    if (req.body.you.health < 85) { // we are hungry
       closestFood = foodSearch(req.body)
       foodMove = pathToFood(closestFood, req.body, grid, possibleMoves)
       generatedMove = foodMove
@@ -56,7 +57,7 @@ router.post('/move', function (req, res) {
       possibleMoves = ['up', 'down', 'left', 'right']
     }
 
-    if (req.body.you.health < 45) { // we are hungry
+    if (req.body.you.health < 85) { // we are hungry
       console.log('not at a wall and hungry')
       closestFood = foodSearch(req.body)
       foodMove = pathToFood(closestFood, req.body, grid, possibleMoves)
@@ -81,7 +82,6 @@ router.post('/move', function (req, res) {
 
   if (!possibleMoves.includes(generatedMove)) {
     generatedMove = possibleMoves[0]
-    console.log(generatedMove)
   }
 
   // Response data
@@ -103,7 +103,7 @@ function pathToTail(bodyData, grid, possibleMoves) {
   gridBackup.setWalkableAt(bodyData[0].x, bodyData[0].y, true)
   gridBackup.setWalkableAt(bodyData[bodyData.length - 1].x, bodyData[bodyData.length - 1].y, true)
   var path = finder.findPath(bodyData[0].x, bodyData[0].y, bodyData[bodyData.length - 1].x, bodyData[bodyData.length - 1].y, gridBackup)
-  
+
   if (path[1][0] === path[0][0]) { // same x coordinates
     if (path[1][1] !== path[0][1]) { // different y coordinates
       if (path[1][1] < path[0][1] && possibleMoves.includes('up')) {
@@ -125,15 +125,20 @@ function pathToTail(bodyData, grid, possibleMoves) {
 
 function pathToFood(closestFood, data, grid, possibleMoves) {
   var bodyData = data.you.body.data // body coordinates
+  var snakes = data.snakes.data // snakes data
   var finder = new PF.AStarFinder()
   var gridBackup = grid.clone()
 
   bodyData.forEach(function (object) {
     gridBackup.setWalkableAt(object.x, object.y, false)
   })
+  gridBackup.setWalkableAt(bodyData[0].x, bodyData[0].y, true)
+  gridBackup.setWalkableAt(bodyData[bodyData.length - 1].x, bodyData[bodyData.length - 1].y, true)
 
   var path = finder.findPath(bodyData[0].x, bodyData[0].y, closestFood[1].x, closestFood[1].y, gridBackup)
-  console.log(path);
+  if (path.length === 0) {
+    return possibleMoves[0]
+  }
   
   if (path[1][0] === bodyData[0].x) { // don't turn left or right
     if (path[1][1] === bodyData[0].y - 1 && possibleMoves.includes('up')) { // go up

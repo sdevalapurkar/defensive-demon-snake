@@ -13,7 +13,6 @@ router.post('/start', function (req, res) {
     name: "Spinmaaaasstaaaaa",
     secondary_color: "#CD5C5C",
     head_url: "https://pbs.twimg.com/profile_images/914920708248969216/bLKIEQkS_400x400.jpg", // optional, but encouraged!
-    // taunt: ["Can't beat Redbrickers at ping pong", "Meet the spinmaaaaassstaaaaa", "Let's go for a spinnnn"], // optional, but encouraged!
     tail_type: 'curled',
     head_type: 'shades'
   }
@@ -38,14 +37,37 @@ router.post('/move', function (req, res) {
   var tailMove = ''
   var gridData = []
 
-  // set all snake points as unwalkable in the backup grid
+  if (!cornerMove && !possibleMoves) { // not at corner or wall
+    if (body[1].x === body[0].x - 1) { // left of my head
+      possibleMoves = ['up', 'down', 'right']
+    } else if (body[1].x === body[0].x + 1) { // right of my head
+      possibleMoves = ['left', 'up', 'down']
+    } else if (body[1].y === body[0].y - 1) { // up of my head
+      possibleMoves = ['left', 'down', 'right']
+    } else if (body[1].y === body[0].y + 1) { // down of my head
+      possibleMoves = ['left', 'right', 'up']
+    } else {
+      possibleMoves = ['up', 'down', 'left', 'right']
+    }
+  }
+
+  // create the empty new grid 2d array
+  for (var j = 0; j < req.body.height; j++) {
+    var row = []
+    for (var k = 0; k < req.body.width; k++) {
+      row.push(1)
+    }
+    gridData.push(row)
+  }
+
+  // set all body points as unwalkable in the backup grid
   body.forEach(function (object) {
     backupGrid.setWalkableAt(object.x, object.y, false)
   })
 
+  // set all snake points as unwalkable in the backup grid
   snakes.forEach(function (snake) {
     snake.body.data.forEach(function (object) {
-      console.log(object)
       backupGrid.setWalkableAt(object.x, object.y, false)
     })
   })
@@ -53,32 +75,73 @@ router.post('/move', function (req, res) {
   backupGrid.nodes.forEach(function (node) {
     node.forEach(function (object) {
       gridData[object.x] = gridData[object.x] || []
-      if (object.walkable) {
-        gridData[object.x][object.y] = 1
-      } else {
-        gridData[object.x][object.y] = 0
+      if (!object.walkable) {
+        gridData[object.y][object.x] = 0
       }
     })
   })
+
+  console.log('grid: ', gridData)
+
+  // update possible moves based on where other snakes are
+  if (gridData[body[0].y][body[0].x - 1] === 0) {
+    console.log('left')
+    removeElement(possibleMoves, 'left')
+  } else if (gridData[body[0].y][body[0].x + 1] === 0) {
+    console.log('right')
+    removeElement(possibleMoves, 'right')
+  } else if (gridData[body[0].y - 1][body[0].x] === 0) {
+    console.log('up')
+    removeElement(possibleMoves, 'up')
+  } else if (gridData[body[0].y + 1][body[0].x] === 0) {
+    console.log('down')
+    removeElement(possibleMoves, 'down')
+  }
+  
+  console.log('updated possible moves: ', possibleMoves)
 
   // Define our getter for accessing the data structure
   var getter = function (x, y) {
     return gridData[y][x];
   };
+  // create some useful variables
+  var seed
+  var result
+  var floodFillResults = []
 
-  // Choose a start node. 
-  var seed = [body[0].x, body[0].y];
-  
-  // Flood fill over the data structure. 
-  var result = floodFill({
-    getter: getter,
-    seed: seed
-  });
-  
-  // Get the flooded nodes from the result. 
-  console.log('result: ', result.flooded)
+  possibleMoves.forEach(function (move) {
+    if (move === 'up') {
+      seed = [body[0].x, body[0].y - 1]
+      result = floodFill({
+        getter: getter,
+        seed: seed
+      })
+      floodFillResults.push({ move, floodLength: result.flooded.length })
+    } else if (move === 'down') {
+      seed = [body[0].x, body[0].y + 1]
+      result = floodFill({
+        getter: getter,
+        seed: seed
+      })
+      floodFillResults.push({ move, floodLength: result.flooded.length })
+    } else if (move === 'left') {
+      seed = [body[0].x - 1, body[0].y]
+      result = floodFill({
+        getter: getter,
+        seed: seed
+      })
+      floodFillResults.push({ move, floodLength: result.flooded.length })
+    } else if (move === 'right') {
+      seed = [body[0].x + 1, body[0].y]
+      result = floodFill({
+        getter: getter,
+        seed: seed
+      })
+      floodFillResults.push({ move, floodLength: result.flooded.length })
+    }
+  })
 
-
+  console.log('flood fill results: ', floodFillResults)
 
   // generate a move logic
   if (cornerMove !== false) { // we are at a corner
@@ -86,7 +149,7 @@ router.post('/move', function (req, res) {
   } else if (possibleMoves !== false) { // we are at a wall
     if (req.body.you.health < 60) { // we are hungry
       closestFood = foodSearch(req.body)
-      foodMove = pathToFood(closestFood, req.body, backupGrid, possibleMoves)
+      foodMove = pathToFood(closestFood, req.body, backupGrid, possibleMoves, floodFillResults)
       if (foodMove !== false) {
         generatedMove = foodMove
       } else {
@@ -102,22 +165,10 @@ router.post('/move', function (req, res) {
       }
     }
   } else {
-    if (body[1].x === body[0].x - 1) { // left of my head
-      possibleMoves = ['up', 'down', 'right']
-    } else if (body[1].x === body[0].x + 1) { // right of my head
-      possibleMoves = ['left', 'up', 'down']
-    } else if (body[1].y === body[0].y - 1) { // up of my head
-      possibleMoves = ['left', 'down', 'right']
-    } else if (body[1].y === body[0].y + 1) { // down of my head
-      possibleMoves = ['left', 'right', 'up']
-    } else {
-      possibleMoves = ['up', 'down', 'left', 'right']
-    }
-
     if (req.body.you.health < 60) { // we are hungry
       console.log('not at a wall and hungry')
       closestFood = foodSearch(req.body)
-      foodMove = pathToFood(closestFood, req.body, backupGrid, possibleMoves)
+      foodMove = pathToFood(closestFood, req.body, backupGrid, possibleMoves, floodFillResults)
       if (foodMove !== false) {
         generatedMove = foodMove
       } else {
@@ -146,8 +197,6 @@ router.post('/move', function (req, res) {
     possibleMoves = ['up', 'down', 'left', 'right']
   }
 
-  console.log(possibleMoves)
-
   if (!possibleMoves.includes(generatedMove)) {
     generatedMove = possibleMoves[0]
   }
@@ -172,7 +221,6 @@ function pathToTail(data, grid, possibleMoves) {
 
   data.snakes.data.forEach(function (snake) {
     snake.body.data.forEach(function (object) {
-      console.log(object)
       gridBackup.setWalkableAt(object.x, object.y, false)
     })
   })
@@ -184,7 +232,6 @@ function pathToTail(data, grid, possibleMoves) {
   if (path.length === 0) {
     return false
   }
-  console.log(path)
 
   if (path[1][0] === path[0][0]) { // same x coordinates
     if (path[1][1] !== path[0][1]) { // different y coordinates
@@ -205,8 +252,9 @@ function pathToTail(data, grid, possibleMoves) {
   }
 }
 
-function pathToFood(closestFood, data, grid, possibleMoves) {
+function pathToFood(closestFood, data, grid, possibleMoves, floodFillResults) {
   console.log('closestFood: ', closestFood)
+  console.log('floodfillresults in pathtofood: ', floodFillResults)
   var bodyData = data.you.body.data // body coordinates
   var snakes = data.snakes.data // snakes data
   var finder = new PF.AStarFinder()
@@ -269,8 +317,18 @@ function foodSearch(data) {
   return closestFood // [distance to closest food, { coordinates of closest food }]
 }
 
+// helper function to calculate the distance between two coordinate points
 function distance(point1, point2) { // calculate distance between two points
   return Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2))
+}
+
+// helper function to remove a specified element from an array
+function removeElement(array, element) {
+  var index = array.indexOf(element)
+
+  if (index !== -1) {
+    array.splice(index, 1)
+  }
 }
 
 function checkWalls(data) {

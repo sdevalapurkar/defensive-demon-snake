@@ -1,6 +1,7 @@
 var express = require('express')
 var router  = express.Router()
 var PF = require('pathfinding')
+var floodFill = require("n-dimensional-flood-fill")
 
 // Handle POST request to '/start'
 router.post('/start', function (req, res) {
@@ -31,24 +32,74 @@ router.post('/move', function (req, res) {
   var body = req.body.you.body.data
   var snakes = req.body.snakes.data
   var grid = new PF.Grid(req.body.width, req.body.height)
+  var backupGrid = grid.clone()
   var closestFood = []
   var foodMove = ''
   var tailMove = ''
+  var gridData = []
 
+  // set all snake points as unwalkable in the backup grid
+  body.forEach(function (object) {
+    backupGrid.setWalkableAt(object.x, object.y, false)
+  })
+
+  snakes.forEach(function (snake) {
+    snake.body.data.forEach(function (object) {
+      console.log(object)
+      backupGrid.setWalkableAt(object.x, object.y, false)
+    })
+  })
+  
+  backupGrid.nodes.forEach(function (node) {
+    node.forEach(function (object) {
+      gridData[object.x] = gridData[object.x] || []
+      if (object.walkable) {
+        gridData[object.x][object.y] = 1
+      } else {
+        gridData[object.x][object.y] = 0
+      }
+    })
+  })
+
+  // Define our getter for accessing the data structure
+  var getter = function (x, y) {
+    return gridData[y][x];
+  };
+
+  // Choose a start node. 
+  var seed = [body[0].x, body[0].y];
+  
+  // Flood fill over the data structure. 
+  var result = floodFill({
+    getter: getter,
+    seed: seed
+  });
+  
+  // Get the flooded nodes from the result. 
+  console.log('result: ', result.flooded)
+
+
+
+  // generate a move logic
   if (cornerMove !== false) { // we are at a corner
     generatedMove = cornerMove
   } else if (possibleMoves !== false) { // we are at a wall
     if (req.body.you.health < 60) { // we are hungry
       closestFood = foodSearch(req.body)
-      foodMove = pathToFood(closestFood, req.body, grid, possibleMoves)
+      foodMove = pathToFood(closestFood, req.body, backupGrid, possibleMoves)
       if (foodMove !== false) {
         generatedMove = foodMove
       } else {
-        generatedMove = pathToTail(bodyParam, grid, possibleMoves)
+        generatedMove = pathToTail(bodyParam, backupGrid, possibleMoves)
       }
     } else { // find path to tail
-      tailMove = pathToTail(bodyParam, grid, possibleMoves)
-      generatedMove = tailMove
+      tailMove = pathToTail(bodyParam, backupGrid, possibleMoves)
+      if (tailMove !== false) {
+        generatedMove = tailMove
+      } else {
+        console.log('no path to tail, going to find food instead')
+        generatedMove = pathToFood(closestFood, req.body, backupGrid, possibleMoves)
+      }
     }
   } else {
     if (body[1].x === body[0].x - 1) { // left of my head
@@ -66,15 +117,20 @@ router.post('/move', function (req, res) {
     if (req.body.you.health < 60) { // we are hungry
       console.log('not at a wall and hungry')
       closestFood = foodSearch(req.body)
-      foodMove = pathToFood(closestFood, req.body, grid, possibleMoves)
+      foodMove = pathToFood(closestFood, req.body, backupGrid, possibleMoves)
       if (foodMove !== false) {
         generatedMove = foodMove
       } else {
-        generatedMove = pathToTail(bodyParam, grid, possibleMoves)
+        generatedMove = pathToTail(bodyParam, backupGrid, possibleMoves)
       }
     } else { // find path to tail
-      tailMove = pathToTail(bodyParam, grid, possibleMoves)
-      generatedMove = tailMove
+      tailMove = pathToTail(bodyParam, backupGrid, possibleMoves)
+      if (tailMove !== false) {
+        generatedMove = tailMove
+      } else {
+        console.log('no path to tail, going to find food instead')
+        generatedMove = pathToFood(closestFood, req.body, backupGrid, possibleMoves)
+      }
     }
   }
 
@@ -125,6 +181,9 @@ function pathToTail(data, grid, possibleMoves) {
   gridBackup.setWalkableAt(bodyData[bodyData.length - 1].x, bodyData[bodyData.length - 1].y, true)
 
   var path = finder.findPath(bodyData[0].x, bodyData[0].y, bodyData[bodyData.length - 1].x, bodyData[bodyData.length - 1].y, gridBackup)
+  if (path.length === 0) {
+    return false
+  }
   console.log(path)
 
   if (path[1][0] === path[0][0]) { // same x coordinates

@@ -42,6 +42,8 @@ router.post('/move', function (req, res) {
   var result
   var floodFillResults = []
   var possibleWallMoves = checkWalls(req.body)
+  var myID = req.body.you.id
+  var otherSnakeHeads = []
 
   // helper function to remove a specified element from an array
   function removeElement(array, element) {
@@ -125,6 +127,77 @@ router.post('/move', function (req, res) {
 
   console.log('updated possible moves: ', possibleMoves)
   console.log('test 3')
+
+  // store all the head locations of other snakes
+  snakes.forEach(function (snake) {
+    if (snake.id !== myID) {
+      otherSnakeHeads.push({ x: snake.body.data[0].x, y: snake.body.data[0].y })
+    }
+  })
+  console.log('other snake heads: ', otherSnakeHeads)
+  console.log('grid data :', gridData[body[0].y - 2])
+  console.log('y location: ', body[0].y - 2)
+  console.log('x location: ', body[0].x)
+
+  //finally, update possible moves if a snake can move into the same spot as us for head on head collison
+  if (possibleMoves.includes('up')) {
+    otherSnakeHeads.forEach(function (location) {
+      if (gridData[body[0].y - 2] !== undefined && location.y === body[0].y - 2 && location.x === body[0].x) {
+        console.log('remove up snake above')
+        removeElement(possibleMoves, 'up')
+      } else if (gridData[body[0].x + 1] !== undefined && location.y === body[0].y - 1 && location.x === body[0].x + 1) {
+        console.log('remove up snake to right')
+        removeElement(possibleMoves, 'up')
+      } else if (gridData[body[0].x - 1] !== undefined && location.y === body[0].y - 1 && location.x === body[0].x - 1) {
+        console.log('remove up snake to left')
+        removeElement(possibleMoves, 'up')
+      }
+    })
+  }
+  if (possibleMoves.includes('down')) {
+    otherSnakeHeads.forEach(function (location) {
+      if (gridData[body[0].y + 2] !== undefined && location.y === body[0].y + 2 && location.x === body[0].x) {
+        console.log('remove down snake below')
+        removeElement(possibleMoves, 'down')
+      } else if (gridData[body[0].x + 1] !== undefined && location.y === body[0].y + 1 && location.x === body[0].x + 1) {
+        console.log('remove down snake to right')
+        removeElement(possibleMoves, 'down')
+      } else if (gridData[body[0].x - 1] !== undefined && location.y === body[0].y + 1 && location.x === body[0].x - 1) {
+        console.log('remove down snake to left')
+        removeElement(possibleMoves, 'down')
+      }
+    })
+  }
+  if (possibleMoves.includes('left')) {
+    otherSnakeHeads.forEach(function (location) {
+      if (gridData[body[0].x - 2] !== undefined && location.y === body[0].y && location.x === body[0].x - 2) {
+        console.log('remove left snake to left')
+        removeElement(possibleMoves, 'left')
+      } else if (gridData[body[0].y - 1] !== undefined && location.y === body[0].y - 1 && location.x === body[0].x - 1) {
+        console.log('remove left snake above')
+        removeElement(possibleMoves, 'left')
+      } else if (gridData[body[0].y + 1] !== undefined && location.y === body[0].y + 1 && location.x === body[0].x - 1) {
+        console.log('remove left snake below')
+        removeElement(possibleMoves, 'left')
+      }
+    })
+  }
+  if (possibleMoves.includes('right')) {
+    otherSnakeHeads.forEach(function (location) {
+      if (gridData[body[0].x + 2] !== undefined && location.y === body[0].y && location.x === body[0].x + 2) {
+        console.log('remove right snake to right')
+        removeElement(possibleMoves, 'right')
+      } else if (gridData[body[0].y - 1] !== undefined && location.y === body[0].y - 1 && location.x === body[0].x + 1) {
+        console.log('remove right snake above')
+        removeElement(possibleMoves, 'right')
+      } else if (gridData[body[0].y + 1] !== undefined && location.y === body[0].y + 1 && location.x === body[0].x + 1) {
+        console.log('remove right snake below')
+        removeElement(possibleMoves, 'right')
+      }
+    })
+  }
+
+  console.log('possible moves after the head on head avoidance: ', possibleMoves)
   
   // Define our getter for accessing the data structure
   var getter = function (x, y) {

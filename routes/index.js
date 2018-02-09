@@ -46,6 +46,20 @@ router.post('/move', function (req, res) {
   var myID = req.body.you.id
   var otherSnakeHeads = []
   var updatedOtherSnakeHeads = []
+  var hungerValue = 0
+
+  // calculate hunger value dynamically based on # of snakes and # of food
+  console.log('# snakes: ', req.body.snakes.data.length)
+  console.log('# food: ', req.body.food.data.length)
+  if (req.body.snakes.data.length > 4 && req.body.food.data.length < 3) {
+    hungerValue = 80
+  } else if (req.body.snakes.data.length > 4 && req.body.food.data.length < 7) {
+    hungerValue = 60
+  } else if (req.body.snakes.data.length < 4) {
+    hungerValue = 41
+  } else {
+    hungerValue = 85
+  }
 
   // helper function to remove a specified element from an array
   function removeElement(array, element) {
@@ -59,7 +73,7 @@ router.post('/move', function (req, res) {
   // store all the head locations of other snakes
   snakes.forEach(function (snake) {
     if (snake.id !== myID) {
-      otherSnakeHeads.push({ x: snake.body.data[0].x, y: snake.body.data[0].y })
+      otherSnakeHeads.push({ x: snake.body.data[0].x, y: snake.body.data[0].y, length: snake.length, id: snake.id })
     }
   })
   console.log('other snake heads: ', otherSnakeHeads)
@@ -125,8 +139,8 @@ router.post('/move', function (req, res) {
     newBackupGrid.setWalkableAt(object.x, object.y, false)
   })
 
-  // set my own tail as walkable for flood fill purposes if im longer than 5 units
-  if (req.body.you.length > 5) {
+  // set my own tail as walkable for flood fill purposes if im longer than 5 units and didn't just eat
+  if (req.body.you.length > 5 && req.body.you.health < 100) {
     newBackupGrid.setWalkableAt(body[body.length - 1].x, body[body.length - 1].y, true)
   }
   
@@ -186,13 +200,13 @@ router.post('/move', function (req, res) {
   //finally, update possible moves if a snake can move into the same spot as us for head on head collison
   if (possibleMoves.includes('up') && possibleMoves.length > 1) {
     otherSnakeHeads.forEach(function (location) {
-      if (gridData[body[0].y - 2] !== undefined && location.y === body[0].y - 2 && location.x === body[0].x) {
+      if (gridData[body[0].y - 2] !== undefined && location.y === body[0].y - 2 && location.x === body[0].x && location.length >= req.body.you.length) {
         console.log('remove up snake above')
         removeElement(possibleMoves, 'up')
-      } else if (gridData[body[0].x + 1] !== undefined && location.y === body[0].y - 1 && location.x === body[0].x + 1) {
+      } else if (gridData[body[0].x + 1] !== undefined && location.y === body[0].y - 1 && location.x === body[0].x + 1 && location.length >= req.body.you.length) {
         console.log('remove up snake to right')
         removeElement(possibleMoves, 'up')
-      } else if (gridData[body[0].x - 1] !== undefined && location.y === body[0].y - 1 && location.x === body[0].x - 1) {
+      } else if (gridData[body[0].x - 1] !== undefined && location.y === body[0].y - 1 && location.x === body[0].x - 1 && location.length >= req.body.you.length) {
         console.log('remove up snake to left')
         removeElement(possibleMoves, 'up')
       }
@@ -200,13 +214,13 @@ router.post('/move', function (req, res) {
   }
   if (possibleMoves.includes('down') && possibleMoves.length > 1) {
     otherSnakeHeads.forEach(function (location) {
-      if (gridData[body[0].y + 2] !== undefined && location.y === body[0].y + 2 && location.x === body[0].x) {
+      if (gridData[body[0].y + 2] !== undefined && location.y === body[0].y + 2 && location.x === body[0].x && location.length >= req.body.you.length) {
         console.log('remove down snake below')
         removeElement(possibleMoves, 'down')
-      } else if (gridData[body[0].x + 1] !== undefined && location.y === body[0].y + 1 && location.x === body[0].x + 1) {
+      } else if (gridData[body[0].x + 1] !== undefined && location.y === body[0].y + 1 && location.x === body[0].x + 1 && location.length >= req.body.you.length) {
         console.log('remove down snake to right')
         removeElement(possibleMoves, 'down')
-      } else if (gridData[body[0].x - 1] !== undefined && location.y === body[0].y + 1 && location.x === body[0].x - 1) {
+      } else if (gridData[body[0].x - 1] !== undefined && location.y === body[0].y + 1 && location.x === body[0].x - 1 && location.length >= req.body.you.length) {
         console.log('remove down snake to left')
         removeElement(possibleMoves, 'down')
       }
@@ -214,13 +228,13 @@ router.post('/move', function (req, res) {
   }
   if (possibleMoves.includes('left') && possibleMoves.length > 1) {
     otherSnakeHeads.forEach(function (location) {
-      if (gridData[body[0].x - 2] !== undefined && location.y === body[0].y && location.x === body[0].x - 2) {
+      if (gridData[body[0].x - 2] !== undefined && location.y === body[0].y && location.x === body[0].x - 2 && location.length >= req.body.you.length) {
         console.log('remove left snake to left')
         removeElement(possibleMoves, 'left')
-      } else if (gridData[body[0].y - 1] !== undefined && location.y === body[0].y - 1 && location.x === body[0].x - 1) {
+      } else if (gridData[body[0].y - 1] !== undefined && location.y === body[0].y - 1 && location.x === body[0].x - 1 && location.length >= req.body.you.length) {
         console.log('remove left snake above')
         removeElement(possibleMoves, 'left')
-      } else if (gridData[body[0].y + 1] !== undefined && location.y === body[0].y + 1 && location.x === body[0].x - 1) {
+      } else if (gridData[body[0].y + 1] !== undefined && location.y === body[0].y + 1 && location.x === body[0].x - 1 && location.length >= req.body.you.length) {
         console.log('remove left snake below')
         removeElement(possibleMoves, 'left')
       }
@@ -228,13 +242,13 @@ router.post('/move', function (req, res) {
   }
   if (possibleMoves.includes('right') && possibleMoves.length > 1) {
     otherSnakeHeads.forEach(function (location) {
-      if (gridData[body[0].x + 2] !== undefined && location.y === body[0].y && location.x === body[0].x + 2) {
+      if (gridData[body[0].x + 2] !== undefined && location.y === body[0].y && location.x === body[0].x + 2 && location.length >= req.body.you.length) {
         console.log('remove right snake to right')
         removeElement(possibleMoves, 'right')
-      } else if (gridData[body[0].y - 1] !== undefined && location.y === body[0].y - 1 && location.x === body[0].x + 1) {
+      } else if (gridData[body[0].y - 1] !== undefined && location.y === body[0].y - 1 && location.x === body[0].x + 1 && location.length >= req.body.you.length) {
         console.log('remove right snake above')
         removeElement(possibleMoves, 'right')
-      } else if (gridData[body[0].y + 1] !== undefined && location.y === body[0].y + 1 && location.x === body[0].x + 1) {
+      } else if (gridData[body[0].y + 1] !== undefined && location.y === body[0].y + 1 && location.x === body[0].x + 1 && location.length >= req.body.you.length) {
         console.log('remove right snake below')
         removeElement(possibleMoves, 'right')
       }
@@ -306,7 +320,7 @@ router.post('/move', function (req, res) {
     console.log('at a corner')
     generatedMove = cornerMove
   } else {
-    if (req.body.you.health < 85) { // we are hungry
+    if (req.body.you.health < hungerValue) { // we are hungry
       console.log('not at corner, we are hungry')
       closestFood = foodSearch(req.body)
       console.log(closestFood)

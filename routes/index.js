@@ -54,6 +54,7 @@ router.post('/move', function (req, res) {
   var otherSnakeHeads = []
   var updatedOtherSnakeHeads = []
   var hungerValue = 0
+  var foodProximity = 4
 
   /* --------------------------------------------------------------------------------------------*/
 
@@ -182,6 +183,13 @@ router.post('/move', function (req, res) {
   }
 
   /* --------------------------------------------------------------------------------------------*/
+
+  // set my own tail as walkable for flood fill purposes if im longer than 5 units and didn't just eat
+  if (req.body.you.length > 5 && req.body.you.health < 100) {
+    backupGrid.setWalkableAt(body[body.length - 1].x, body[body.length - 1].y, true)
+  }
+
+  /* --------------------------------------------------------------------------------------------*/
   
   // create the new grid for the flood fill function WITH fake heads
   newBackupGrid.nodes.forEach(function (node) {
@@ -207,7 +215,7 @@ router.post('/move', function (req, res) {
 
   /* --------------------------------------------------------------------------------------------*/
 
-  console.log(possibleMoves)
+  console.log('possible moves 1: ', possibleMoves)
 
   // check if at a wall and remove moves from possible moves accordingly
   if (possibleWallMoves !== false) {
@@ -224,8 +232,9 @@ router.post('/move', function (req, res) {
 
   /* --------------------------------------------------------------------------------------------*/
 
-  console.log('possiblemoves: ', possibleMoves)
-  console.log('gridData: ', noFakeHeadGridData)
+  console.log('possible moves 2: ', possibleMoves)
+  console.log(noFakeHeadGridData)
+  console.log(body[0].y - 1, body[0].x)
 
   // update possible moves based on where we are and where other snakes are
   if (possibleMoves.includes('left') && noFakeHeadGridData[body[0].y][body[0].x - 1] !== 1) {
@@ -242,6 +251,8 @@ router.post('/move', function (req, res) {
   }
 
   /* --------------------------------------------------------------------------------------------*/
+
+  console.log('possible moves 3: ', possibleMoves)
 
   //finally, update possible moves if a snake can move into the same spot as us for head on head collison
   if (possibleMoves.includes('up') && possibleMoves.length > 1) {
@@ -290,6 +301,8 @@ router.post('/move', function (req, res) {
   }
 
   /* --------------------------------------------------------------------------------------------*/
+
+  console.log('possible moves 4: ', possibleMoves)
   
   // Define our getter for accessing the data structure
   var getter = function (x, y) {
@@ -336,6 +349,8 @@ router.post('/move', function (req, res) {
       floodFillResults.push({ move, floodLength: result.flooded.length })
     }
   })
+
+  console.log('flood fill results', result.flooded)
 
   /* --------------------------------------------------------------------------------------------*/
 
@@ -388,10 +403,11 @@ router.post('/move', function (req, res) {
     }
   })
 
-  console.log(newFloodFillResults)
-  console.log(largestFloodFillMove)
-
   /* --------------------------------------------------------------------------------------------*/
+
+  console.log('flood fill with fake', floodFillResults)
+  console.log('flood fill without fake', newFloodFillResults)
+  console.log('possible moves', possibleMoves)
 
   // generate a move
   if (cornerMove !== false) { // we are at a corner
@@ -406,10 +422,23 @@ router.post('/move', function (req, res) {
         generatedMove = pathToTail(bodyParam, backupGrid, possibleMoves, floodFillResults)
       }
     } else { // find path to tail if not hungry
-      tailMove = pathToTail(bodyParam, backupGrid, possibleMoves, floodFillResults)
-      console.log(tailMove)
-      if (tailMove !== false && tailMove !== undefined) {
-        generatedMove = tailMove
+      closestFood = foodSearch(req.body)
+      console.log('closest food is: ', closestFood)
+      foodMove = false
+      if (closestFood[0] > foodProximity) {
+        console.log('food too far away')
+        console.log('possible moves:', possibleMoves)
+        console.log('floodfillresults: ', floodFillResults)
+        foodMove = pathToFood(closestFood, req.body, backupGrid, possibleMoves, floodFillResults)
+        console.log('food move is: ', foodMove)
+      }
+      if (foodMove !== false) {
+        generatedMove = foodMove
+      } else {
+        tailMove = pathToTail(bodyParam, backupGrid, possibleMoves, floodFillResults)
+        if (tailMove !== false && tailMove !== undefined) {
+          generatedMove = tailMove
+        }
       }
     }
   }

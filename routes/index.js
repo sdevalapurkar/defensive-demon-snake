@@ -9,12 +9,12 @@ router.post('/start', function (req, res) {
 
   // Response data
   var data = {
-    color: "#FFA07A",
-    name: "Spinmaaaasstaaaaa",
+    color: "#FF69B4", // old color: #FFA07A, nice also #c2bff9, and nice green #007f7f, #6d0000
+    name: "Shiffany",
     secondary_color: "#CD5C5C",
-    head_url: "https://pbs.twimg.com/profile_images/914920708248969216/bLKIEQkS_400x400.jpg", // optional, but encouraged!
+    head_url: "https://rdbrck.com/wp-content/uploads/2016/09/shift_icon@2x.png", // optional, but encouraged!
     tail_type: 'curled',
-    head_type: 'shades'
+    head_type: 'bendr' // bendr is nice
   }
 
   return res.json(data)

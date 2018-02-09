@@ -32,6 +32,7 @@ router.post('/move', function (req, res) {
   var snakes = req.body.snakes.data
   var grid = new PF.Grid(req.body.width, req.body.height)
   var backupGrid = grid.clone()
+  var newBackupGrid = grid.clone()
   var closestFood = []
   var foodMove = ''
   var tailMove = ''
@@ -44,6 +45,7 @@ router.post('/move', function (req, res) {
   var possibleWallMoves = checkWalls(req.body)
   var myID = req.body.you.id
   var otherSnakeHeads = []
+  var updatedOtherSnakeHeads = []
 
   // helper function to remove a specified element from an array
   function removeElement(array, element) {
@@ -53,6 +55,37 @@ router.post('/move', function (req, res) {
       array.splice(index, 1)
     }
   }
+
+  // store all the head locations of other snakes
+  snakes.forEach(function (snake) {
+    if (snake.id !== myID) {
+      otherSnakeHeads.push({ x: snake.body.data[0].x, y: snake.body.data[0].y })
+    }
+  })
+  console.log('other snake heads: ', otherSnakeHeads)
+
+  // append fake heads to each of the heads of the other snakes for pessimistic flood fill
+  otherSnakeHeads.forEach(function (object) {
+    if (object.x - 1 >= 0) {
+      updatedOtherSnakeHeads.push({ x: object.x - 1, y: object.y })
+    }
+    if (object.x + 1 < req.body.width) {
+      updatedOtherSnakeHeads.push({ x: object.x + 1, y: object.y })
+    }
+    if (object.y - 1 >= 0) {
+      updatedOtherSnakeHeads.push({ x: object.x, y: object.y - 1 })
+    }
+    if (object.y + 1 < req.body.height) {
+      updatedOtherSnakeHeads.push({ x: object.x, y: object.y + 1 })
+    }
+  })
+
+  // also push all values in othersnakeshead into updatedothersnakeshead
+  otherSnakeHeads.forEach(function (object) {
+    updatedOtherSnakeHeads.push(object)
+  })
+
+  console.log('updated other snakes headsss: ', updatedOtherSnakeHeads)
 
   // create the empty new grid 2d array
   for (var j = 0; j < req.body.height; j++) {
@@ -74,9 +107,26 @@ router.post('/move', function (req, res) {
       backupGrid.setWalkableAt(object.x, object.y, false)
     })
   })
+
+  // set all body points as unwalkable in the new backup grid
+  body.forEach(function (object) {
+    newBackupGrid.setWalkableAt(object.x, object.y, false)
+  })
+
+  // set all snake points as unwalkable in the new backup grid
+  snakes.forEach(function (snake) {
+    snake.body.data.forEach(function (object) {
+      newBackupGrid.setWalkableAt(object.x, object.y, false)
+    })
+  })
+
+  // set all the 'fake' snake heads as unwalkable for the new backup grid
+  updatedOtherSnakeHeads.forEach(function (object) {
+    newBackupGrid.setWalkableAt(object.x, object.y, false)
+  })
   
   // create the new grid for the flood fill function
-  backupGrid.nodes.forEach(function (node) {
+  newBackupGrid.nodes.forEach(function (node) {
     node.forEach(function (object) {
       gridData[object.x] = gridData[object.x] || []
       if (!object.walkable) {
@@ -84,6 +134,9 @@ router.post('/move', function (req, res) {
       }
     })
   })
+
+  // // set my own tail as walkable for flood fill purposes
+  // gridBackup.setWalkableAt(bodyData[bodyData.length - 1].x, bodyData[bodyData.length - 1].y, true)  
 
   console.log('test1')
   if (possibleWallMoves !== false) {
@@ -128,19 +181,8 @@ router.post('/move', function (req, res) {
   console.log('updated possible moves: ', possibleMoves)
   console.log('test 3')
 
-  // store all the head locations of other snakes
-  snakes.forEach(function (snake) {
-    if (snake.id !== myID) {
-      otherSnakeHeads.push({ x: snake.body.data[0].x, y: snake.body.data[0].y })
-    }
-  })
-  console.log('other snake heads: ', otherSnakeHeads)
-  console.log('grid data :', gridData[body[0].y - 2])
-  console.log('y location: ', body[0].y - 2)
-  console.log('x location: ', body[0].x)
-
   //finally, update possible moves if a snake can move into the same spot as us for head on head collison
-  if (possibleMoves.includes('up')) {
+  if (possibleMoves.includes('up') && possibleMoves.length > 1) {
     otherSnakeHeads.forEach(function (location) {
       if (gridData[body[0].y - 2] !== undefined && location.y === body[0].y - 2 && location.x === body[0].x) {
         console.log('remove up snake above')
@@ -154,7 +196,7 @@ router.post('/move', function (req, res) {
       }
     })
   }
-  if (possibleMoves.includes('down')) {
+  if (possibleMoves.includes('down') && possibleMoves.length > 1) {
     otherSnakeHeads.forEach(function (location) {
       if (gridData[body[0].y + 2] !== undefined && location.y === body[0].y + 2 && location.x === body[0].x) {
         console.log('remove down snake below')
@@ -168,7 +210,7 @@ router.post('/move', function (req, res) {
       }
     })
   }
-  if (possibleMoves.includes('left')) {
+  if (possibleMoves.includes('left') && possibleMoves.length > 1) {
     otherSnakeHeads.forEach(function (location) {
       if (gridData[body[0].x - 2] !== undefined && location.y === body[0].y && location.x === body[0].x - 2) {
         console.log('remove left snake to left')
@@ -182,7 +224,7 @@ router.post('/move', function (req, res) {
       }
     })
   }
-  if (possibleMoves.includes('right')) {
+  if (possibleMoves.includes('right') && possibleMoves.length > 1) {
     otherSnakeHeads.forEach(function (location) {
       if (gridData[body[0].x + 2] !== undefined && location.y === body[0].y && location.x === body[0].x + 2) {
         console.log('remove right snake to right')
@@ -286,7 +328,7 @@ router.post('/move', function (req, res) {
     }
   }
 
-  if (generatedMove === undefined) {
+  if (generatedMove === false || generatedMove === undefined) {
     generatedMove = largestFloodFillMove
   }
 
@@ -333,17 +375,17 @@ function pathToTail(data, grid, possibleMoves, floodFillResults) {
 
   if (path[1][0] === path[0][0]) { // same x coordinates
     if (path[1][1] !== path[0][1]) { // different y coordinates
-      if (path[1][1] < path[0][1] && checkPossibleMoves.includes('up')) {
+      if (path[1][1] < path[0][1] && checkPossibleMoves.includes('up') && possibleMoves.includes('up')) {
         return 'up'
-      } else if (path[1][1] > path[0][1] && checkPossibleMoves.includes('down')) {
+      } else if (path[1][1] > path[0][1] && checkPossibleMoves.includes('down') && possibleMoves.includes('down')) {
         return 'down'
       }
     }
   } else if (path[1][1] === path[0][1]) { // same y coordinates
     if (path[1][0] !== path[0][0]) { // different x coordinates
-      if (path[1][0] > path[0][0] && checkPossibleMoves.includes('right')) {
+      if (path[1][0] > path[0][0] && checkPossibleMoves.includes('right') && possibleMoves.includes('right')) {
         return 'right'
-      } else if (path[1][0] < path[0][0] && checkPossibleMoves.includes('left')) {
+      } else if (path[1][0] < path[0][0] && checkPossibleMoves.includes('left') && possibleMoves.includes('left')) {
         return 'left'
       }
     }

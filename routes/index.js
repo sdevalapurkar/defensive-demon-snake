@@ -124,6 +124,9 @@ router.post('/move', function (req, res) {
   updatedOtherSnakeHeads.forEach(function (object) {
     newBackupGrid.setWalkableAt(object.x, object.y, false)
   })
+
+  // set my own tail as walkable for flood fill purposes
+  newBackupGrid.setWalkableAt(body[body.length - 1].x, body[body.length - 1].y, true)  
   
   // create the new grid for the flood fill function
   newBackupGrid.nodes.forEach(function (node) {
@@ -134,9 +137,6 @@ router.post('/move', function (req, res) {
       }
     })
   })
-
-  // // set my own tail as walkable for flood fill purposes
-  // gridBackup.setWalkableAt(bodyData[bodyData.length - 1].x, bodyData[bodyData.length - 1].y, true)  
 
   console.log('test1')
   if (possibleWallMoves !== false) {

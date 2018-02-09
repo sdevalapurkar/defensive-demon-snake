@@ -125,8 +125,10 @@ router.post('/move', function (req, res) {
     newBackupGrid.setWalkableAt(object.x, object.y, false)
   })
 
-  // set my own tail as walkable for flood fill purposes
-  newBackupGrid.setWalkableAt(body[body.length - 1].x, body[body.length - 1].y, true)  
+  // set my own tail as walkable for flood fill purposes if im longer than 5 units
+  if (req.body.you.length > 5) {
+    newBackupGrid.setWalkableAt(body[body.length - 1].x, body[body.length - 1].y, true)
+  }
   
   // create the new grid for the flood fill function
   newBackupGrid.nodes.forEach(function (node) {

@@ -290,7 +290,7 @@ router.post('/move', function (req, res) {
 
   // get the move with the largest flood fill value
   floodFillResults.forEach(function (object) {
-    if (object.floodLength < 12) {
+    if (object.floodLength < req.body.you.length) {
       removeElement(possibleMoves, object.move) // need to remove from floodfilledresults
     }
     if (largest < object.floodLength) {

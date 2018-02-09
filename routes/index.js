@@ -41,11 +41,14 @@ router.post('/move', function (req, res) {
   var foodMove = ''
   var tailMove = ''
   var gridData = []
+  var noFakeHeadGridData = []
   var largest = 0
   var largestFloodFillMove
   var seed
+  var newSeed
   var result
   var floodFillResults = []
+  var newFloodFillResults = []
   var possibleWallMoves = checkWalls(req.body)
   var myID = req.body.you.id
   var otherSnakeHeads = []
@@ -123,6 +126,17 @@ router.post('/move', function (req, res) {
 
   /* --------------------------------------------------------------------------------------------*/
 
+  // create the empty new grid 2d array
+  for (var j = 0; j < req.body.height; j++) {
+    var row = []
+    for (var k = 0; k < req.body.width; k++) {
+      row.push(1)
+    }
+    noFakeHeadGridData.push(row)
+  }
+
+  /* --------------------------------------------------------------------------------------------*/
+
   // set all body points as unwalkable in the backup grid
   body.forEach(function (object) {
     backupGrid.setWalkableAt(object.x, object.y, false)
@@ -169,7 +183,7 @@ router.post('/move', function (req, res) {
 
   /* --------------------------------------------------------------------------------------------*/
   
-  // create the new grid for the flood fill function
+  // create the new grid for the flood fill function WITH fake heads
   newBackupGrid.nodes.forEach(function (node) {
     node.forEach(function (object) {
       gridData[object.x] = gridData[object.x] || []
@@ -180,6 +194,20 @@ router.post('/move', function (req, res) {
   })
 
   /* --------------------------------------------------------------------------------------------*/
+
+  // create the grid for the flood fill WITHOUT fake heads
+  backupGrid.nodes.forEach(function (node) {
+    node.forEach(function (object) {
+      noFakeHeadGridData[object.x] = noFakeHeadGridData[object.x] || []
+      if (!object.walkable) {
+        noFakeHeadGridData[object.y][object.x] = 0
+      }
+    })
+  })
+
+  /* --------------------------------------------------------------------------------------------*/
+
+  console.log(possibleMoves)
 
   // check if at a wall and remove moves from possible moves accordingly
   if (possibleWallMoves !== false) {
@@ -196,21 +224,20 @@ router.post('/move', function (req, res) {
 
   /* --------------------------------------------------------------------------------------------*/
 
+  console.log('possiblemoves: ', possibleMoves)
+  console.log('gridData: ', noFakeHeadGridData)
+
   // update possible moves based on where we are and where other snakes are
-  if (possibleMoves.includes('left') && gridData[body[0].y][body[0].x - 1] !== 1) {
-    console.log('remove left')
+  if (possibleMoves.includes('left') && noFakeHeadGridData[body[0].y][body[0].x - 1] !== 1) {
     removeElement(possibleMoves, 'left')
   } 
-  if (possibleMoves.includes('right') && gridData[body[0].y][body[0].x + 1] !== 1) {
-    console.log('remove right')
+  if (possibleMoves.includes('right') && noFakeHeadGridData[body[0].y][body[0].x + 1] !== 1) {
     removeElement(possibleMoves, 'right')
   } 
-  if (possibleMoves.includes('up') && (gridData[body[0].y - 1]) !== undefined && gridData[body[0].y - 1][body[0].x] !== 1) {
-    console.log('remove up')
+  if (possibleMoves.includes('up') && (noFakeHeadGridData[body[0].y - 1]) !== undefined && noFakeHeadGridData[body[0].y - 1][body[0].x] !== 1) {
     removeElement(possibleMoves, 'up')
   } 
-  if (possibleMoves.includes('down') && (gridData[body[0].y + 1]) !== undefined && gridData[body[0].y + 1][body[0].x] !== 1) {
-    console.log('remove down')
+  if (possibleMoves.includes('down') && (noFakeHeadGridData[body[0].y + 1]) !== undefined && noFakeHeadGridData[body[0].y + 1][body[0].x] !== 1) {
     removeElement(possibleMoves, 'down')
   }
 
@@ -219,56 +246,44 @@ router.post('/move', function (req, res) {
   //finally, update possible moves if a snake can move into the same spot as us for head on head collison
   if (possibleMoves.includes('up') && possibleMoves.length > 1) {
     otherSnakeHeads.forEach(function (location) {
-      if (gridData[body[0].y - 2] !== undefined && location.y === body[0].y - 2 && location.x === body[0].x && location.length >= req.body.you.length) {
-        console.log('remove up snake above')
+      if (gridData[body[0].y - 2] !== undefined && location.y === body[0].y - 2 && location.x === body[0].x && location.length > req.body.you.length) {
         removeElement(possibleMoves, 'up')
-      } else if (gridData[body[0].x + 1] !== undefined && location.y === body[0].y - 1 && location.x === body[0].x + 1 && location.length >= req.body.you.length) {
-        console.log('remove up snake to right')
+      } else if (gridData[body[0].x + 1] !== undefined && location.y === body[0].y - 1 && location.x === body[0].x + 1 && location.length > req.body.you.length) {
         removeElement(possibleMoves, 'up')
-      } else if (gridData[body[0].x - 1] !== undefined && location.y === body[0].y - 1 && location.x === body[0].x - 1 && location.length >= req.body.you.length) {
-        console.log('remove up snake to left')
+      } else if (gridData[body[0].x - 1] !== undefined && location.y === body[0].y - 1 && location.x === body[0].x - 1 && location.length > req.body.you.length) {
         removeElement(possibleMoves, 'up')
       }
     })
   }
   if (possibleMoves.includes('down') && possibleMoves.length > 1) {
     otherSnakeHeads.forEach(function (location) {
-      if (gridData[body[0].y + 2] !== undefined && location.y === body[0].y + 2 && location.x === body[0].x && location.length >= req.body.you.length) {
-        console.log('remove down snake below')
+      if (gridData[body[0].y + 2] !== undefined && location.y === body[0].y + 2 && location.x === body[0].x && location.length > req.body.you.length) {
         removeElement(possibleMoves, 'down')
-      } else if (gridData[body[0].x + 1] !== undefined && location.y === body[0].y + 1 && location.x === body[0].x + 1 && location.length >= req.body.you.length) {
-        console.log('remove down snake to right')
+      } else if (gridData[body[0].x + 1] !== undefined && location.y === body[0].y + 1 && location.x === body[0].x + 1 && location.length > req.body.you.length) {
         removeElement(possibleMoves, 'down')
-      } else if (gridData[body[0].x - 1] !== undefined && location.y === body[0].y + 1 && location.x === body[0].x - 1 && location.length >= req.body.you.length) {
-        console.log('remove down snake to left')
+      } else if (gridData[body[0].x - 1] !== undefined && location.y === body[0].y + 1 && location.x === body[0].x - 1 && location.length > req.body.you.length) {
         removeElement(possibleMoves, 'down')
       }
     })
   }
   if (possibleMoves.includes('left') && possibleMoves.length > 1) {
     otherSnakeHeads.forEach(function (location) {
-      if (gridData[body[0].x - 2] !== undefined && location.y === body[0].y && location.x === body[0].x - 2 && location.length >= req.body.you.length) {
-        console.log('remove left snake to left')
+      if (gridData[body[0].x - 2] !== undefined && location.y === body[0].y && location.x === body[0].x - 2 && location.length > req.body.you.length) {
         removeElement(possibleMoves, 'left')
-      } else if (gridData[body[0].y - 1] !== undefined && location.y === body[0].y - 1 && location.x === body[0].x - 1 && location.length >= req.body.you.length) {
-        console.log('remove left snake above')
+      } else if (gridData[body[0].y - 1] !== undefined && location.y === body[0].y - 1 && location.x === body[0].x - 1 && location.length > req.body.you.length) {
         removeElement(possibleMoves, 'left')
-      } else if (gridData[body[0].y + 1] !== undefined && location.y === body[0].y + 1 && location.x === body[0].x - 1 && location.length >= req.body.you.length) {
-        console.log('remove left snake below')
+      } else if (gridData[body[0].y + 1] !== undefined && location.y === body[0].y + 1 && location.x === body[0].x - 1 && location.length > req.body.you.length) {
         removeElement(possibleMoves, 'left')
       }
     })
   }
   if (possibleMoves.includes('right') && possibleMoves.length > 1) {
     otherSnakeHeads.forEach(function (location) {
-      if (gridData[body[0].x + 2] !== undefined && location.y === body[0].y && location.x === body[0].x + 2 && location.length >= req.body.you.length) {
-        console.log('remove right snake to right')
+      if (gridData[body[0].x + 2] !== undefined && location.y === body[0].y && location.x === body[0].x + 2 && location.length > req.body.you.length) {
         removeElement(possibleMoves, 'right')
-      } else if (gridData[body[0].y - 1] !== undefined && location.y === body[0].y - 1 && location.x === body[0].x + 1 && location.length >= req.body.you.length) {
-        console.log('remove right snake above')
+      } else if (gridData[body[0].y - 1] !== undefined && location.y === body[0].y - 1 && location.x === body[0].x + 1 && location.length > req.body.you.length) {
         removeElement(possibleMoves, 'right')
-      } else if (gridData[body[0].y + 1] !== undefined && location.y === body[0].y + 1 && location.x === body[0].x + 1 && location.length >= req.body.you.length) {
-        console.log('remove right snake below')
+      } else if (gridData[body[0].y + 1] !== undefined && location.y === body[0].y + 1 && location.x === body[0].x + 1 && location.length > req.body.you.length) {
         removeElement(possibleMoves, 'right')
       }
     })
@@ -278,11 +293,17 @@ router.post('/move', function (req, res) {
   
   // Define our getter for accessing the data structure
   var getter = function (x, y) {
-    return gridData[y][x];
-  };
+    return gridData[y][x]
+  }
 
   /* --------------------------------------------------------------------------------------------*/
-  
+
+  var newGetter = function (x, y) {
+    return noFakeHeadGridData[y][x]
+  }
+
+  /* --------------------------------------------------------------------------------------------*/
+
   // go through the possible moves and store the flood fill lengths for those moves
   possibleMoves.forEach(function (move) {
     if (move === 'up' && body[0].y - 1 > -1) {
@@ -318,16 +339,57 @@ router.post('/move', function (req, res) {
 
   /* --------------------------------------------------------------------------------------------*/
 
+  // go through the possible moves and store the flood fill lengths for those moves
+  possibleMoves.forEach(function (move) {
+    if (move === 'up' && body[0].y - 1 > -1) {
+      newSeed = [body[0].x, body[0].y - 1]
+      result = floodFill({
+        getter: newGetter,
+        seed: newSeed
+      })
+      newFloodFillResults.push({ move, floodLength: result.flooded.length })
+    } else if (move === 'down' && body[0].y + 1 < req.body.height) {
+      newSeed = [body[0].x, body[0].y + 1]
+      result = floodFill({
+        getter: newGetter,
+        seed: newSeed
+      })
+      newFloodFillResults.push({ move, floodLength: result.flooded.length })
+    } else if (move === 'left' && body[0].x - 1 > -1) {
+      newSeed = [body[0].x - 1, body[0].y]
+      result = floodFill({
+        getter: newGetter,
+        seed: newSeed
+      })
+      newFloodFillResults.push({ move, floodLength: result.flooded.length })
+    } else if (move === 'right' && body[0].x + 1 < req.body.width) {
+      newSeed = [body[0].x + 1, body[0].y]
+      result = floodFill({
+        getter: newGetter,
+        seed: newSeed
+      })
+      newFloodFillResults.push({ move, floodLength: result.flooded.length })
+    }
+  })
+
+  /* --------------------------------------------------------------------------------------------*/
+
   // get the move with the largest flood fill value
   floodFillResults.forEach(function (object) {
     if (object.floodLength < req.body.you.length) {
-      removeElement(possibleMoves, object.move) // need to remove from floodfilledresults
+      removeElement(possibleMoves, object.move)
     }
+  })
+
+  newFloodFillResults.forEach(function (object) {
     if (largest < object.floodLength) {
       largest = object.floodLength
       largestFloodFillMove = object.move
     }
   })
+
+  console.log(newFloodFillResults)
+  console.log(largestFloodFillMove)
 
   /* --------------------------------------------------------------------------------------------*/
 
@@ -345,10 +407,9 @@ router.post('/move', function (req, res) {
       }
     } else { // find path to tail if not hungry
       tailMove = pathToTail(bodyParam, backupGrid, possibleMoves, floodFillResults)
+      console.log(tailMove)
       if (tailMove !== false && tailMove !== undefined) {
         generatedMove = tailMove
-      } else { // no path to tail, go to place with most open space
-        generatedMove = largestFloodFillMove
       }
     }
   }
@@ -398,6 +459,9 @@ function pathToTail(data, grid, possibleMoves, floodFillResults) {
     return false
   }
 
+  console.log(path)
+  console.log(floodFillResults)
+
   var checkPossibleMoves = []
   floodFillResults.forEach(function (object) {
     checkPossibleMoves.push(object.move)
@@ -405,17 +469,17 @@ function pathToTail(data, grid, possibleMoves, floodFillResults) {
 
   if (path[1][0] === path[0][0]) { // same x coordinates
     if (path[1][1] !== path[0][1]) { // different y coordinates
-      if (path[1][1] < path[0][1] && checkPossibleMoves.includes('up') && possibleMoves.includes('up')) {
+      if (path[1][1] < path[0][1] && checkPossibleMoves.includes('up')) {
         return 'up'
-      } else if (path[1][1] > path[0][1] && checkPossibleMoves.includes('down') && possibleMoves.includes('down')) {
+      } else if (path[1][1] > path[0][1] && checkPossibleMoves.includes('down')) {
         return 'down'
       }
     }
   } else if (path[1][1] === path[0][1]) { // same y coordinates
     if (path[1][0] !== path[0][0]) { // different x coordinates
-      if (path[1][0] > path[0][0] && checkPossibleMoves.includes('right') && possibleMoves.includes('right')) {
+      if (path[1][0] > path[0][0] && checkPossibleMoves.includes('right')) {
         return 'right'
-      } else if (path[1][0] < path[0][0] && checkPossibleMoves.includes('left') && possibleMoves.includes('left')) {
+      } else if (path[1][0] < path[0][0] && checkPossibleMoves.includes('left')) {
         return 'left'
       }
     }

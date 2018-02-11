@@ -138,9 +138,12 @@ router.post('/move', function (req, res) {
 
   /* --------------------------------------------------------------------------------------------*/
 
-  // set all body points as unwalkable in the backup grid
+  // set all body points as unwalkable in the backup grid if one or more distance away
   body.forEach(function (object) {
-    backupGrid.setWalkableAt(object.x, object.y, false)
+    // console.log('object', object)
+    if (distance(object, body[0]) <= 2) {
+      backupGrid.setWalkableAt(object.x, object.y, false)
+    }
   })
 
   /* --------------------------------------------------------------------------------------------*/
@@ -422,23 +425,9 @@ router.post('/move', function (req, res) {
         generatedMove = pathToTail(bodyParam, backupGrid, possibleMoves, floodFillResults)
       }
     } else { // find path to tail if not hungry
-      closestFood = foodSearch(req.body)
-      console.log('closest food is: ', closestFood)
-      foodMove = false
-      if (closestFood[0] > foodProximity) {
-        console.log('food too far away')
-        console.log('possible moves:', possibleMoves)
-        console.log('floodfillresults: ', floodFillResults)
-        foodMove = pathToFood(closestFood, req.body, backupGrid, possibleMoves, floodFillResults)
-        console.log('food move is: ', foodMove)
-      }
-      if (foodMove !== false) {
-        generatedMove = foodMove
-      } else {
-        tailMove = pathToTail(bodyParam, backupGrid, possibleMoves, floodFillResults)
-        if (tailMove !== false && tailMove !== undefined) {
-          generatedMove = tailMove
-        }
+      tailMove = pathToTail(bodyParam, backupGrid, possibleMoves, floodFillResults)
+      if (tailMove !== false && tailMove !== undefined) {
+        generatedMove = tailMove
       }
     }
   }
@@ -538,6 +527,8 @@ function pathToFood(closestFood, data, grid, possibleMoves, floodFillResults) {
   if (path.length === 0) {
     return false
   }
+
+  console.log('path', path)
 
   var checkPossibleMoves = []
   floodFillResults.forEach(function (object) {

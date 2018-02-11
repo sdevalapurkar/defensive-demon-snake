@@ -46,15 +46,17 @@ router.post('/move', function (req, res) {
   var largestFloodFillMove
   var seed
   var newSeed
+  var headCollisionSeed
   var result
   var floodFillResults = []
-  var newFloodFillResults = []
+  var headCollisionFloodFillResults = []
   var possibleWallMoves = checkWalls(req.body)
   var myID = req.body.you.id
   var otherSnakeHeads = []
+  var otherSnakeTails = []
   var updatedOtherSnakeHeads = []
   var hungerValue = 0
-  var foodProximity = 4
+  var headCollisionMoves = []
 
   /* --------------------------------------------------------------------------------------------*/
 
@@ -64,7 +66,7 @@ router.post('/move', function (req, res) {
   } else if (req.body.snakes.data.length > 4 && req.body.food.data.length < 7) {
     hungerValue = 60
   } else if (req.body.snakes.data.length < 4) {
-    hungerValue = 41
+    hungerValue = 61
   } else {
     hungerValue = 85
   }
@@ -86,9 +88,12 @@ router.post('/move', function (req, res) {
   snakes.forEach(function (snake) {
     if (snake.id !== myID) {
       otherSnakeHeads.push({ x: snake.body.data[0].x, y: snake.body.data[0].y, length: snake.length, id: snake.id })
+      otherSnakeTails.push({ x: snake.body.data[snake.body.data.length - 1].x, y: snake.body.data[snake.body.data.length - 1].y, health: snake.health })
     }
   })
 
+  console.log('other snake tails: ', otherSnakeTails)
+    
   /* --------------------------------------------------------------------------------------------*/
 
   // append fake heads to each of the heads of the other snakes for pessimistic flood fill
@@ -140,10 +145,7 @@ router.post('/move', function (req, res) {
 
   // set all body points as unwalkable in the backup grid if one or more distance away
   body.forEach(function (object) {
-    // console.log('object', object)
-    if (distance(object, body[0]) <= 2) {
-      backupGrid.setWalkableAt(object.x, object.y, false)
-    }
+    backupGrid.setWalkableAt(object.x, object.y, false)
   })
 
   /* --------------------------------------------------------------------------------------------*/
@@ -176,6 +178,21 @@ router.post('/move', function (req, res) {
   // set all the 'fake' snake heads as unwalkable for the new backup grid
   updatedOtherSnakeHeads.forEach(function (object) {
     newBackupGrid.setWalkableAt(object.x, object.y, false)
+  })
+
+  /* --------------------------------------------------------------------------------------------*/
+
+  // set all snake tails as walkable if their health is not 100 (that is, they haven't just ate)
+  otherSnakeTails.forEach(function (object) {
+    if (object.health !== 100) {
+      backupGrid.setWalkableAt(object.x, object.y, true)
+    }
+  })
+
+  otherSnakeTails.forEach(function (object) {
+    if (object.health !== 100) {
+      newBackupGrid.setWalkableAt(object.x, object.y, true)
+    }
   })
 
   /* --------------------------------------------------------------------------------------------*/
@@ -215,6 +232,9 @@ router.post('/move', function (req, res) {
       }
     })
   })
+
+  console.log('gridData testttt: ', gridData)
+  console.log('nofakegriddata: ', noFakeHeadGridData)
 
   /* --------------------------------------------------------------------------------------------*/
 
@@ -262,43 +282,55 @@ router.post('/move', function (req, res) {
     otherSnakeHeads.forEach(function (location) {
       if (gridData[body[0].y - 2] !== undefined && location.y === body[0].y - 2 && location.x === body[0].x && location.length > req.body.you.length) {
         removeElement(possibleMoves, 'up')
+        headCollisionMoves.push('up')
       } else if (gridData[body[0].x + 1] !== undefined && location.y === body[0].y - 1 && location.x === body[0].x + 1 && location.length > req.body.you.length) {
         removeElement(possibleMoves, 'up')
+        headCollisionMoves.push('up')
       } else if (gridData[body[0].x - 1] !== undefined && location.y === body[0].y - 1 && location.x === body[0].x - 1 && location.length > req.body.you.length) {
         removeElement(possibleMoves, 'up')
+        headCollisionMoves.push('up')
       }
     })
   }
-  if (possibleMoves.includes('down') && possibleMoves.length > 1) {
+  if (possibleMoves.includes('down')) {
     otherSnakeHeads.forEach(function (location) {
       if (gridData[body[0].y + 2] !== undefined && location.y === body[0].y + 2 && location.x === body[0].x && location.length > req.body.you.length) {
         removeElement(possibleMoves, 'down')
+        headCollisionMoves.push('down')
       } else if (gridData[body[0].x + 1] !== undefined && location.y === body[0].y + 1 && location.x === body[0].x + 1 && location.length > req.body.you.length) {
         removeElement(possibleMoves, 'down')
+        headCollisionMoves.push('down')
       } else if (gridData[body[0].x - 1] !== undefined && location.y === body[0].y + 1 && location.x === body[0].x - 1 && location.length > req.body.you.length) {
         removeElement(possibleMoves, 'down')
+        headCollisionMoves.push('down')
       }
     })
   }
-  if (possibleMoves.includes('left') && possibleMoves.length > 1) {
+  if (possibleMoves.includes('left')) {
     otherSnakeHeads.forEach(function (location) {
       if (gridData[body[0].x - 2] !== undefined && location.y === body[0].y && location.x === body[0].x - 2 && location.length > req.body.you.length) {
         removeElement(possibleMoves, 'left')
+        headCollisionMoves.push('left')
       } else if (gridData[body[0].y - 1] !== undefined && location.y === body[0].y - 1 && location.x === body[0].x - 1 && location.length > req.body.you.length) {
         removeElement(possibleMoves, 'left')
+        headCollisionMoves.push('left')
       } else if (gridData[body[0].y + 1] !== undefined && location.y === body[0].y + 1 && location.x === body[0].x - 1 && location.length > req.body.you.length) {
         removeElement(possibleMoves, 'left')
+        headCollisionMoves.push('left')
       }
     })
   }
-  if (possibleMoves.includes('right') && possibleMoves.length > 1) {
+  if (possibleMoves.includes('right')) {
     otherSnakeHeads.forEach(function (location) {
       if (gridData[body[0].x + 2] !== undefined && location.y === body[0].y && location.x === body[0].x + 2 && location.length > req.body.you.length) {
         removeElement(possibleMoves, 'right')
+        headCollisionMoves.push('right')
       } else if (gridData[body[0].y - 1] !== undefined && location.y === body[0].y - 1 && location.x === body[0].x + 1 && location.length > req.body.you.length) {
         removeElement(possibleMoves, 'right')
+        headCollisionMoves.push('right')
       } else if (gridData[body[0].y + 1] !== undefined && location.y === body[0].y + 1 && location.x === body[0].x + 1 && location.length > req.body.you.length) {
         removeElement(possibleMoves, 'right')
+        headCollisionMoves.push('right')
       }
     })
   }
@@ -306,6 +338,45 @@ router.post('/move', function (req, res) {
   /* --------------------------------------------------------------------------------------------*/
 
   console.log('possible moves 4: ', possibleMoves)
+
+  // if all possible moves have been removed, this must mean we are definitely going to collide heads
+  // so do a flood fill for the possible moves that will cause head collision
+  var headCollisionGetter = function (x, y) {
+    return noFakeHeadGridData[y][x]
+  }
+  headCollisionMoves.forEach(function (move) {
+    if (move === 'up' && body[0].y - 1 > -1) {
+      headCollisionSeed = [body[0].x, body[0].y - 1]
+      result = floodFill({
+        getter: headCollisionGetter,
+        seed: headCollisionSeed
+      })
+      headCollisionFloodFillResults.push({ move, floodLength: result.flooded.length })
+    } else if (move === 'down' && body[0].y + 1 < req.body.height) {
+      headCollisionSeed = [body[0].x, body[0].y + 1]
+      result = floodFill({
+        getter: headCollisionGetter,
+        seed: headCollisionSeed
+      })
+      headCollisionFloodFillResults.push({ move, floodLength: result.flooded.length })
+    } else if (move === 'left' && body[0].x - 1 > -1) {
+      headCollisionSeed = [body[0].x - 1, body[0].y]
+      result = floodFill({
+        getter: headCollisionGetter,
+        seed: headCollisionSeed
+      })
+      headCollisionFloodFillResults.push({ move, floodLength: result.flooded.length })
+    } else if (move === 'right' && body[0].x + 1 < req.body.width) {
+      headCollisionSeed = [body[0].x + 1, body[0].y]
+      result = floodFill({
+        getter: headCollisionGetter,
+        seed: headCollisionSeed
+      })
+      headCollisionFloodFillResults.push({ move, floodLength: result.flooded.length })
+    }
+  })  
+
+  /* --------------------------------------------------------------------------------------------*/
   
   // Define our getter for accessing the data structure
   var getter = function (x, y) {
@@ -357,60 +428,33 @@ router.post('/move', function (req, res) {
 
   /* --------------------------------------------------------------------------------------------*/
 
-  // go through the possible moves and store the flood fill lengths for those moves
-  possibleMoves.forEach(function (move) {
-    if (move === 'up' && body[0].y - 1 > -1) {
-      newSeed = [body[0].x, body[0].y - 1]
-      result = floodFill({
-        getter: newGetter,
-        seed: newSeed
-      })
-      newFloodFillResults.push({ move, floodLength: result.flooded.length })
-    } else if (move === 'down' && body[0].y + 1 < req.body.height) {
-      newSeed = [body[0].x, body[0].y + 1]
-      result = floodFill({
-        getter: newGetter,
-        seed: newSeed
-      })
-      newFloodFillResults.push({ move, floodLength: result.flooded.length })
-    } else if (move === 'left' && body[0].x - 1 > -1) {
-      newSeed = [body[0].x - 1, body[0].y]
-      result = floodFill({
-        getter: newGetter,
-        seed: newSeed
-      })
-      newFloodFillResults.push({ move, floodLength: result.flooded.length })
-    } else if (move === 'right' && body[0].x + 1 < req.body.width) {
-      newSeed = [body[0].x + 1, body[0].y]
-      result = floodFill({
-        getter: newGetter,
-        seed: newSeed
-      })
-      newFloodFillResults.push({ move, floodLength: result.flooded.length })
-    }
-  })
-
-  /* --------------------------------------------------------------------------------------------*/
-
   // get the move with the largest flood fill value
   floodFillResults.forEach(function (object) {
     if (object.floodLength < req.body.you.length) {
       removeElement(possibleMoves, object.move)
     }
-  })
-
-  newFloodFillResults.forEach(function (object) {
     if (largest < object.floodLength) {
       largest = object.floodLength
       largestFloodFillMove = object.move
     }
   })
 
+  if (largestFloodFillMove === undefined) {
+    headCollisionFloodFillResults.forEach(function (object) {
+      if (largest < object.floodLength) {
+        largest = object.floodLength
+        largestFloodFillMove = object.move
+      }
+    })
+  }
+
   /* --------------------------------------------------------------------------------------------*/
 
   console.log('flood fill with fake', floodFillResults)
-  console.log('flood fill without fake', newFloodFillResults)
+  console.log('flood fill for head collision results: ', headCollisionFloodFillResults)
   console.log('possible moves', possibleMoves)
+  console.log('largest flood fill move: ', largestFloodFillMove)
+  console.log('hunger value: ', hungerValue)
 
   // generate a move
   if (cornerMove !== false) { // we are at a corner
@@ -436,6 +480,7 @@ router.post('/move', function (req, res) {
 
   // last minute check
   if (generatedMove === false || generatedMove === undefined) {
+    console.log('inside last min check')
     generatedMove = largestFloodFillMove
   }
 
@@ -470,7 +515,9 @@ function pathToTail(data, grid, possibleMoves, floodFillResults) {
 
   // set our own head and tail as walkable points
   gridBackup.setWalkableAt(bodyData[0].x, bodyData[0].y, true)
-  gridBackup.setWalkableAt(bodyData[bodyData.length - 1].x, bodyData[bodyData.length - 1].y, true)
+  if (data.you.length > 4) {
+    gridBackup.setWalkableAt(bodyData[bodyData.length - 1].x, bodyData[bodyData.length - 1].y, true)
+  }
 
   var path = finder.findPath(bodyData[0].x, bodyData[0].y, bodyData[bodyData.length - 1].x, bodyData[bodyData.length - 1].y, gridBackup) 
   if (path.length === 0 || path.length === 1) {

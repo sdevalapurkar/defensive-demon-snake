@@ -64,9 +64,9 @@ router.post('/move', function (req, res) {
   if (req.body.snakes.data.length > 4 && req.body.food.data.length < 3) {
     hungerValue = 80
   } else if (req.body.snakes.data.length > 4 && req.body.food.data.length < 7) {
-    hungerValue = 60
+    hungerValue = 70
   } else if (req.body.snakes.data.length < 4) {
-    hungerValue = 61
+    hungerValue = 71
   } else {
     hungerValue = 85
   }

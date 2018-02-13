@@ -291,7 +291,7 @@ router.post('/move', function (req, res) {
         generatedMove = pathToTail(bodyParam, backupGrid, possibleMoves, floodFillResults)
       }
     } else { // find path to tail if not hungry
-      tailMove = pathToTail(bodyParam, backupGrid, possibleMoves)
+      tailMove = pathToTail(bodyParam, backupGrid, possibleMoves, flag, flagLimited, largestMove, largestMoveLimited)
       console.log('tail move:', tailMove)
       if (tailMove !== false && tailMove !== undefined) {
         generatedMove = tailMove
@@ -315,7 +315,7 @@ router.post('/move', function (req, res) {
 })
 
 // find and return the first move that leads to our tail
-function pathToTail(data, grid, possibleMoves) {
+function pathToTail(data, grid, possibleMoves, flag, flagLimited, largestMove, largestMoveLimited) {
   var bodyData = data.you.body.data
   var finder = new PF.AStarFinder()
   var gridBackup = grid.clone()
@@ -345,17 +345,33 @@ function pathToTail(data, grid, possibleMoves) {
   if (path[1][0] === path[0][0]) { // same x coordinates
     if (path[1][1] !== path[0][1]) { // different y coordinates
       if (path[1][1] < path[0][1] && possibleMoves.includes('up')) {
-        return 'up'
+        if (!flag && !flagLimited) {
+          return 'up'
+        } else if (largestMoveLimited === 'up') {
+          return 'up'
+        }
       } else if (path[1][1] > path[0][1] && possibleMoves.includes('down')) {
-        return 'down'
+        if (!flag && !flagLimited) {
+          return 'down'
+        } else if (largestMoveLimited === 'down') {
+          return 'down'
+        }
       }
     }
   } else if (path[1][1] === path[0][1]) { // same y coordinates
     if (path[1][0] !== path[0][0]) { // different x coordinates
       if (path[1][0] > path[0][0] && possibleMoves.includes('right')) {
-        return 'right'
+        if (!flag && !flagLimited) {
+          return 'right'
+        } else if (largestMoveLimited === 'right') {
+          return 'right'
+        }
       } else if (path[1][0] < path[0][0] && possibleMoves.includes('left')) {
-        return 'left'
+        if (!flag && !flagLimited) {
+          return 'left'
+        } else if (largestMoveLimited === 'left') {
+          return 'left'
+        }
       }
     }
   }

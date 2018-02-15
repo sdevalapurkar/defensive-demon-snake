@@ -356,41 +356,45 @@ function pathToTail(data, grid, possibleMoves, flag, flagLimited, largestMove, l
   if (path[1][0] === path[0][0]) { // same x coordinates
     if (path[1][1] !== path[0][1]) { // different y coordinates
       if (path[1][1] < path[0][1] && possibleMoves.includes('up')) {
-        if (!flag && !flagLimited) {
-          return 'up'
-        } else if (flagLimited && largestMoveLimited === 'up') {
-          return 'up'
-        } else if (flag && largestMove === 'up') {
-          return 'up'
-        }
+        // if (!flag && !flagLimited) {
+        //   return 'up'
+        // } else if (flagLimited && largestMoveLimited === 'up') {
+        //   return 'up'
+        // } else if (flag && largestMove === 'up') {
+        //   return 'up'
+        // }
+        return 'up'
       } else if (path[1][1] > path[0][1] && possibleMoves.includes('down')) {
-        if (!flag && !flagLimited) {
-          return 'down'
-        } else if (flagLimited && largestMoveLimited === 'down') {
-          return 'down'
-        } else if (flag && largestMove === 'down') {
-          return 'down'
-        }
+        // if (!flag && !flagLimited) {
+        //   return 'down'
+        // } else if (flagLimited && largestMoveLimited === 'down') {
+        //   return 'down'
+        // } else if (flag && largestMove === 'down') {
+        //   return 'down'
+        // }
+        return 'down'
       }
     }
   } else if (path[1][1] === path[0][1]) { // same y coordinates
     if (path[1][0] !== path[0][0]) { // different x coordinates
       if (path[1][0] > path[0][0] && possibleMoves.includes('right')) {
-        if (!flag && !flagLimited) {
-          return 'right'
-        } else if (flagLimited && largestMoveLimited === 'right') {
-          return 'right'
-        } else if (flag && largestMove === 'right') {
-          return 'right'
-        }
+        // if (!flag && !flagLimited) {
+        //   return 'right'
+        // } else if (flagLimited && largestMoveLimited === 'right') {
+        //   return 'right'
+        // } else if (flag && largestMove === 'right') {
+        //   return 'right'
+        // }
+        return 'right'
       } else if (path[1][0] < path[0][0] && possibleMoves.includes('left')) {
-        if (!flag && !flagLimited) {
-          return 'left'
-        } else if (flagLimited && largestMoveLimited === 'left') {
-          return 'left'
-        } else if (flag && largestMove === 'left') {
-          return 'left'
-        }
+        // if (!flag && !flagLimited) {
+        //   return 'left'
+        // } else if (flagLimited && largestMoveLimited === 'left') {
+        //   return 'left'
+        // } else if (flag && largestMove === 'left') {
+        //   return 'left'
+        // }
+        return 'left'
       }
     }
   }

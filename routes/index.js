@@ -8,7 +8,7 @@ var dist = require('manhattan')
 router.post('/start', function (req, res) {  
   // Response data
   var data = {
-    color: "#FF69B4", // old color: #FFA07A, nice also #c2bff9, and nice green #007f7f, #6d0000
+    color: "#FF69B4",
     name: "Shiffany",
     secondary_color: "#CD5C5C",
     head_url: "https://rdbrck.com/wp-content/uploads/2016/09/shift_icon@2x.png",
@@ -43,127 +43,26 @@ router.post('/move', function (req, res) {
   var possibleWallMoves = checkWalls(req.body)
   var myID = req.body.you.id
   var otherSnakeHeads = []
-  var otherSnakeTails = []
   var updatedOtherSnakeHeads = []
   var floodFillDepth = 8
-  var floodFillDepthSmaller = 2
-
-  // helper function to remove a specified element from an array
-  function removeElement(array, element) {
-    var index = array.indexOf(element)
-
-    if (index !== -1) {
-      array.splice(index, 1)
-    }
-  }
-
-  // store all the head and tail locations of other snakes
-  snakes.forEach(function (snake) {
-    if (snake.id !== myID) {
-      otherSnakeHeads.push({ x: snake.body.data[0].x, y: snake.body.data[0].y, length: snake.length, id: snake.id })
-      otherSnakeTails.push({ x: snake.body.data[snake.body.data.length - 1].x, y: snake.body.data[snake.body.data.length - 1].y, health: snake.health })
-    }
-  })
-
-  // create the empty new grid 2d array
-  for (var j = 0; j < req.body.height; j++) {
-    var row = []
-    for (var k = 0; k < req.body.width; k++) {
-      row.push(1)
-    }
-    gridData.push(row)
-  }
-
-  // set all body points as unwalkable in the backup grid
-  body.forEach(function (object) {
-    backupGrid.setWalkableAt(object.x, object.y, false)
-  })
-
-  // set all snake points as unwalkable in the backup grid including their fake heads
-  snakes.forEach(function (snake) {
-    snake.body.data.forEach(function (object) {
-      backupGrid.setWalkableAt(object.x, object.y, false)
-    })
-  })
-
-  otherSnakeHeads.forEach(function (head) {
-    backupGrid.setWalkableAt(head.x, head.y, false)
-  })
-
-  // set all snake tails as walkable if their health is not 100 (that is, they haven't just ate)
-  otherSnakeTails.forEach(function (object) {
-    if (object.health !== 100) {
-      backupGrid.setWalkableAt(object.x, object.y, true)
-    }
-  })
-
-  // set my own tail as walkable for flood fill purposes if im longer than 3 units and didn't just eat
-  if (req.body.you.length > 3 && req.body.you.health < 100) {
-    backupGrid.setWalkableAt(body[body.length - 1].x, body[body.length - 1].y, true)
-  }
-
-  // need to set all places where body of myself or other snakes will disappear as walkable
-  snakes.forEach(function (snake) {
-    if (snake.id !== myID) {
-      snake.body.data.reverse().forEach(function (object, index) {
-        if (dist([body[0].x, body[0].y], [object.x, object.y]) > index) {
-          backupGrid.setWalkableAt(object.x, object.y, true)
-        }
-      })
-    } else {
-        if (snake.length > 3 && snake.health < 100) {
-          snake.body.data.reverse().forEach(function (object, index) {
-          if (dist([body[0].x, body[0].y], [object.x, object.y]) > index) {
-            backupGrid.setWalkableAt(object.x, object.y, true)
-          }
-        })
-      }
-    }
-  })
-
-  // create the grid for the flood fill
-  backupGrid.nodes.forEach(function (node) {
-    node.forEach(function (object) {
-      gridData[object.x] = gridData[object.x] || []
-      if (!object.walkable) {
-        gridData[object.y][object.x] = 0
-      }
-    })
-  })
-
-  // check if at a wall and remove moves from possible moves accordingly
-  if (possibleWallMoves !== false) {
-    if (!possibleWallMoves.includes('up')) { // at top wall
-      removeElement(possibleMoves, 'up')
-    } else if (!possibleWallMoves.includes('down')) { // at down wall
-      removeElement(possibleMoves, 'down')
-    } else if (!possibleWallMoves.includes('left')) { // at left wall
-      removeElement(possibleMoves, 'left')
-    } else if (!possibleWallMoves.includes('right')) { // at right wall
-      removeElement(possibleMoves, 'right')
-    }
-  }
-
-  // update possible moves based on where we are and where other snakes are
-  if (possibleMoves.includes('left') && gridData[body[0].y][body[0].x - 1] !== 1) {
-    removeElement(possibleMoves, 'left')
-  } 
-  if (possibleMoves.includes('right') && gridData[body[0].y][body[0].x + 1] !== 1) {
-    removeElement(possibleMoves, 'right')
-  } 
-  if (possibleMoves.includes('up') && (gridData[body[0].y - 1]) !== undefined && gridData[body[0].y - 1][body[0].x] !== 1) {
-    removeElement(possibleMoves, 'up')
-  } 
-  if (possibleMoves.includes('down') && (gridData[body[0].y + 1]) !== undefined && gridData[body[0].y + 1][body[0].x] !== 1) {
-    removeElement(possibleMoves, 'down')
-  }
-
-  // Define our getter for accessing the data structure
+  var flagLimited = false
+  var flag = false
+  var allLimitedLengths = []
+  var allLengths = []
   var getter = function (x, y) {
     return gridData[y][x]
   }
 
-  // go through the possible moves and store the flood fill lengths for those moves
+  storeHeadsOfOtherSnakes(snakes, otherSnakeHeads, myID)
+  appendFakeHeadsToSnakes(otherSnakeHeads, updatedOtherSnakeHeads, bodyParam)
+  createEmptyFFGrid(bodyParam, gridData)
+  setUnwalkableGridAreas(body, backupGrid, snakes, updatedOtherSnakeHeads)
+  setWalkableGridAreas(backupGrid, body, snakes, myID)
+  initializeFFGrid(backupGrid, gridData)
+  removeWallMoves(possibleMoves, possibleWallMoves)
+  removeSnakeCollisionMoves(possibleMoves, gridData, body)
+
+  // perform a flood fill
   possibleMoves.forEach(function (move) {
     var testOnFlood = []
     var testOnFloodSmaller = []
@@ -173,70 +72,51 @@ router.post('/move', function (req, res) {
       result = floodFill({
         getter: getter,
         seed: seed,
-        // might need to dip this later
-        onFlood: function (x, y) { // returns manhattan distance from head to (x,y)
+        onFlood: function (x, y) {
           testOnFlood.push(dist([x, y], [body[0].x, body[0].y]))
           testOnFloodSmaller.push(dist([x, y], [body[0].x, body[0].y]))
         }
       })
-      floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length, floodLengthSmaller: testOnFloodSmaller.filter(distance => distance < floodFillDepthSmaller).length })
-    } else if (move === 'down' && body[0].y + 1 < req.body.height) {
+      floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length })
+    } else if (move === 'down' && body[0].y + 1 < bodyParam.height) {
       seed = [body[0].x, body[0].y + 1]
       result = floodFill({
         getter: getter,
         seed: seed,
-        onFlood: function (x, y) { // returns manhattan distance from head to (x,y)
+        onFlood: function (x, y) {
           testOnFlood.push(dist([x, y], [body[0].x, body[0].y]))
           testOnFloodSmaller.push(dist([x, y], [body[0].x, body[0].y]))
         }
       })
-      floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length, floodLengthSmaller: testOnFloodSmaller.filter(distance => distance < floodFillDepthSmaller).length })
+      floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length })
     } else if (move === 'left' && body[0].x - 1 > -1) {
       seed = [body[0].x - 1, body[0].y]
       result = floodFill({
         getter: getter,
         seed: seed,
-        onFlood: function (x, y) { // returns manhattan distance from head to (x,y)
+        onFlood: function (x, y) {
           testOnFlood.push(dist([x, y], [body[0].x, body[0].y]))
           testOnFloodSmaller.push(dist([x, y], [body[0].x, body[0].y]))
         }
       })
-      floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length, floodLengthSmaller: testOnFloodSmaller.filter(distance => distance < floodFillDepthSmaller).length })
-    } else if (move === 'right' && body[0].x + 1 < req.body.width) {
+      floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length })
+    } else if (move === 'right' && body[0].x + 1 < bodyParam.width) {
       seed = [body[0].x + 1, body[0].y]
       result = floodFill({
         getter: getter,
         seed: seed,
-        onFlood: function (x, y) { // returns manhattan distance from head to (x,y)
+        onFlood: function (x, y) {
           testOnFlood.push(dist([x, y], [body[0].x, body[0].y]))
           testOnFloodSmaller.push(dist([x, y], [body[0].x, body[0].y]))
         }
       })
-      floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length, floodLengthSmaller: testOnFloodSmaller.filter(distance => distance < floodFillDepthSmaller).length })
+      floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length })
     }
   })
 
-  console.log('flood fill results: ', floodFillResults)
+  storeFFLengths(floodFillResults, allLengths, allLimitedLengths)
 
-  // get the move with the largest flood fill value
-  var flagLimited = false
-  var flag = false
-  var flagSmaller = false
-
-  console.log('flag before', flag)
-  console.log('flag limited before', flagLimited)
-  console.log('flag smaller before', flagSmaller)
-
-  var allLimitedLengths = []
-  var allLengths = []
-  var allSmallerLengths =[]
-
-  floodFillResults.forEach(function (object) {
-    allLimitedLengths.push(object.floodLengthLimited)
-    allLengths.push(object.floodLength)
-    allSmallerLengths.push(object.floodLengthSmaller)
-  })
-
+  // check if all the normal FF lengths and all the limited FF lengths are equal or if there is a preferred direction
   for (var i = 0; i < allLengths.length - 1; i++) {
     if (allLengths[i] !== allLengths[i + 1]) {
       flag = true
@@ -247,18 +127,12 @@ router.post('/move', function (req, res) {
       flagLimited = true
     }
   }
-  for (var k = 0; k < allSmallerLengths.length - 1; k++) {
-    if (allSmallerLengths[k] !== allLimitedLengths[k + 1]) {
-      flagSmaller = true
-    }
-  }
 
+  // get the move with the largest flood fill value
   var largestValueLimited = floodFillResults[0].floodLengthLimited
   var largestValue = floodFillResults[0].floodLength
-  var largestValueSmaller = floodFillResults[0].floodLengthSmaller
   var largestMove = floodFillResults[0].move
   var largestMoveLimited = floodFillResults[0].move
-  var largestMoveSmaller = floodFillResults[0].move
 
   floodFillResults.forEach(function (object) {
     if (object.floodLengthLimited > largestValueLimited) {
@@ -269,29 +143,19 @@ router.post('/move', function (req, res) {
       largestValue = object.floodLength
       largestMove = object.move
     }
-    if (object.floodLengthSmaller > largestValueSmaller) {
-      largestValueSmaller = object.floodLengthSmaller
-      largestMoveSmaller = object.move
-    }
   })
-
-  console.log('flag after', flag)
-  console.log('flag limited after', flagLimited)
-  console.log('flag smaller after', flagSmaller)
 
   // generate a move
   if (cornerMove !== false) { // we are at a corner
     generatedMove = cornerMove
   } else {
-    if (req.body.you.health < 80) { // we are hungry
+    if (req.body.you.health < 85) { // we are hungry
       closestFood = foodSearch(req.body)
-      console.log('closestfood', closestFood)
       foodMove = pathToFood(closestFood, req.body, backupGrid, floodFillResults, flag, flagLimited, largestMove, largestMoveLimited)
       if (foodMove !== false) {
         generatedMove = foodMove
       } else {
         generatedMove = pathToTail(bodyParam, backupGrid, possibleMoves, floodFillResults)
-        console.log('gen move from path to tail:', generatedMove)
       }
     } else { // find path to tail if not hungry
       tailMove = pathToTail(bodyParam, backupGrid, possibleMoves, flag, flagLimited, largestMove, largestMoveLimited)
@@ -303,17 +167,12 @@ router.post('/move', function (req, res) {
 
   // last minute check
   if (generatedMove === false || generatedMove === undefined) {
-    console.log('inside last min check')
-    console.log(flag, flagLimited, flagSmaller)
-    if (!flagLimited && !flag && flagSmaller) {
-      console.log('largestmovesmaller', largestMoveSmaller)
-      generatedMove = largestMoveSmaller
-    } else if (!flag && flagLimited && !flagSmaller) {
+    if (!flagLimited && !flag) {
       generatedMove = largestMoveLimited
-    } else if (flag && !flagLimited && !flagSmaller) {
+    } else if (flag && !flagLimited) {
+      generatedMove = largestMoveLimited
+    } else if (!flag && flagLimited) {
       generatedMove = largestMove
-    } else if (flagSmaller && flagLimited && !flag) {
-      generatedMove = largestMoveLimited
     } else {
       generatedMove = largestMove
     }
@@ -321,7 +180,7 @@ router.post('/move', function (req, res) {
 
   // Response data
   var data = {
-    move: generatedMove, // one of: ['up','down','left','right']
+    move: generatedMove,
     taunt: taunts[Math.floor(Math.random()*taunts.length)]
   }
 
@@ -349,6 +208,7 @@ function pathToTail(data, grid, possibleMoves, flag, flagLimited, largestMove, l
   gridBackup.setWalkableAt(bodyData[bodyData.length - 1].x, bodyData[bodyData.length - 1].y, true)
 
   var path = finder.findPath(bodyData[0].x, bodyData[0].y, bodyData[bodyData.length - 1].x, bodyData[bodyData.length - 1].y, gridBackup)
+
   if (path.length === 0 || path.length === 1) {
     return false
   }
@@ -356,53 +216,26 @@ function pathToTail(data, grid, possibleMoves, flag, flagLimited, largestMove, l
   if (path[1][0] === path[0][0]) { // same x coordinates
     if (path[1][1] !== path[0][1]) { // different y coordinates
       if (path[1][1] < path[0][1] && possibleMoves.includes('up')) {
-        // if (!flag && !flagLimited) {
-        //   return 'up'
-        // } else if (flagLimited && largestMoveLimited === 'up') {
-        //   return 'up'
-        // } else if (flag && largestMove === 'up') {
-        //   return 'up'
-        // }
         return 'up'
       } else if (path[1][1] > path[0][1] && possibleMoves.includes('down')) {
-        // if (!flag && !flagLimited) {
-        //   return 'down'
-        // } else if (flagLimited && largestMoveLimited === 'down') {
-        //   return 'down'
-        // } else if (flag && largestMove === 'down') {
-        //   return 'down'
-        // }
         return 'down'
       }
     }
   } else if (path[1][1] === path[0][1]) { // same y coordinates
     if (path[1][0] !== path[0][0]) { // different x coordinates
       if (path[1][0] > path[0][0] && possibleMoves.includes('right')) {
-        // if (!flag && !flagLimited) {
-        //   return 'right'
-        // } else if (flagLimited && largestMoveLimited === 'right') {
-        //   return 'right'
-        // } else if (flag && largestMove === 'right') {
-        //   return 'right'
-        // }
         return 'right'
       } else if (path[1][0] < path[0][0] && possibleMoves.includes('left')) {
-        // if (!flag && !flagLimited) {
-        //   return 'left'
-        // } else if (flagLimited && largestMoveLimited === 'left') {
-        //   return 'left'
-        // } else if (flag && largestMove === 'left') {
-        //   return 'left'
-        // }
         return 'left'
       }
     }
   }
 }
 
+// function that returns a move that gets you closest to the nearest piece of food if a path exists to the food
 function pathToFood(closestFood, data, grid, floodFillResults, flag, flagLimited, largestMove, largestMoveLimited) {
-  var bodyData = data.you.body.data // body coordinates
-  var snakes = data.snakes.data // snakes data
+  var bodyData = data.you.body.data
+  var snakes = data.snakes.data
   var finder = new PF.AStarFinder()
   var gridBackup = grid.clone()
 
@@ -418,6 +251,7 @@ function pathToFood(closestFood, data, grid, floodFillResults, flag, flagLimited
   })
 
   var path = finder.findPath(bodyData[0].x, bodyData[0].y, closestFood[1].x, closestFood[1].y, gridBackup)
+
   if (path.length === 0) {
     return false
   }
@@ -471,6 +305,16 @@ function distance(point1, point2) { // calculate distance between two points
   return Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2))
 }
 
+// helper function to remove a specified element from an array
+function removeElement(array, element) {
+  var index = array.indexOf(element)
+
+  if (index !== -1) {
+    array.splice(index, 1)
+  }
+}
+
+// function that finds the closest piece of food to our head
 function foodSearch(data) {
   var foodData = data.food.data // food
   var bodyData = data.you.body.data // body coordinates
@@ -498,6 +342,7 @@ function foodSearch(data) {
   return closestFood // [distance to closest food, { coordinates of closest food }]
 }
 
+// function to check if we are at a wall
 function checkWalls(data) {
   var bodyData = data.you.body.data
   var health = data.you.health
@@ -542,10 +387,11 @@ function checkWalls(data) {
       return ['up', 'left', 'right']
     }
   } else {
-    return false
+    return false // if we are not at a wall
   }
 }
 
+// function to check if we are at a corner of the game board
 function checkCorners(data) {
   var bodyData = data.you.body.data
   if (bodyData[0].x === 0 && bodyData[0].y === 0) { // up left corner
@@ -573,8 +419,144 @@ function checkCorners(data) {
       return 'up'
     }
   } else {
-    return false
+    return false // if not at a corner
   }
+}
+
+// function to store all the head and tail locations of other snakes
+function storeHeadsOfOtherSnakes(snakes, otherSnakeHeads, myID) {
+  snakes.forEach(function (snake) {
+    if (snake.id !== myID) {
+      otherSnakeHeads.push({ x: snake.body.data[0].x, y: snake.body.data[0].y, length: snake.length, id: snake.id })
+    }
+  })
+}
+
+// function to append fake heads to each of the heads of the other snakes for pessimistic flood fill
+function appendFakeHeadsToSnakes(otherSnakeHeads, updatedOtherSnakeHeads, bodyParam) {
+  otherSnakeHeads.forEach(function (object) {
+    if (object.x - 1 >= 0) { 
+      updatedOtherSnakeHeads.push({ x: object.x - 1, y: object.y }) 
+    } 
+    if (object.x + 1 < bodyParam.width) { 
+      updatedOtherSnakeHeads.push({ x: object.x + 1, y: object.y }) 
+    } 
+    if (object.y - 1 >= 0) { 
+      updatedOtherSnakeHeads.push({ x: object.x, y: object.y - 1 }) 
+    } 
+    if (object.y + 1 < bodyParam.height) { 
+      updatedOtherSnakeHeads.push({ x: object.x, y: object.y + 1 }) 
+    } 
+  })
+
+  // also push all values in othersnakeshead into updatedothersnakeshead 
+  otherSnakeHeads.forEach(function (object) { 
+    updatedOtherSnakeHeads.push(object) 
+  })
+}
+
+// function to create the empty new grid 2d array for flood fill
+function createEmptyFFGrid(bodyParam, gridData) {
+  for (var j = 0; j < bodyParam.height; j++) {
+    var row = []
+    for (var k = 0; k < bodyParam.width; k++) {
+      row.push(1)
+    }
+    gridData.push(row)
+  }
+}
+
+// function to mark all the unwalkable parts of the grid
+function setUnwalkableGridAreas(body, backupGrid, snakes, updatedOtherSnakeHeads) {
+  // set all body points as unwalkable in the backup grid
+  body.forEach(function (object) {
+    backupGrid.setWalkableAt(object.x, object.y, false)
+  })
+
+  // set all snake points as unwalkable in the backup grid
+  snakes.forEach(function (snake) {
+    snake.body.data.forEach(function (object) {
+      backupGrid.setWalkableAt(object.x, object.y, false)
+    })
+  })
+
+  // set all snake fake heads as unwalkable in the backup grid
+  updatedOtherSnakeHeads.forEach(function (head) {
+    backupGrid.setWalkableAt(head.x, head.y, false)
+  })
+}
+
+// function to mark all the walkable parts of the grid
+function setWalkableGridAreas(backupGrid, body, snakes, myID) {
+  // need to set all places where body of myself or other snakes will disappear as walkable
+  snakes.forEach(function (snake) {
+    if (snake.id !== myID && snake.health !== 100) {
+      snake.body.data.reverse().forEach(function (object, index) {
+        if (dist([body[0].x, body[0].y], [object.x, object.y]) > index) {
+          backupGrid.setWalkableAt(object.x, object.y, true)
+        }
+      })
+    } else {
+        if (snake.length > 3 && snake.health < 100) {
+          snake.body.data.reverse().forEach(function (object, index) {
+          if (dist([body[0].x, body[0].y], [object.x, object.y]) > index) {
+            backupGrid.setWalkableAt(object.x, object.y, true)
+          }
+        })
+      }
+    }
+  })
+}
+
+// function to initialize the grid for flood fill with 0s if not walkable
+function initializeFFGrid(backupGrid, gridData) {
+  backupGrid.nodes.forEach(function (node) {
+    node.forEach(function (object) {
+      gridData[object.x] = gridData[object.x] || []
+      if (!object.walkable) {
+        gridData[object.y][object.x] = 0
+      }
+    })
+  })
+}
+
+// function to check if at a wall and remove moves from possible moves accordingly
+function removeWallMoves(possibleMoves, possibleWallMoves) {
+  if (possibleWallMoves !== false) {
+    if (!possibleWallMoves.includes('up')) { // at top wall
+      removeElement(possibleMoves, 'up')
+    } else if (!possibleWallMoves.includes('down')) { // at down wall
+      removeElement(possibleMoves, 'down')
+    } else if (!possibleWallMoves.includes('left')) { // at left wall
+      removeElement(possibleMoves, 'left')
+    } else if (!possibleWallMoves.includes('right')) { // at right wall
+      removeElement(possibleMoves, 'right')
+    }
+  }
+}
+
+// function to update possible moves based on where we are and where other snakes are
+function removeSnakeCollisionMoves(possibleMoves, gridData, body) {
+  if (possibleMoves.includes('left') && gridData[body[0].y][body[0].x - 1] !== 1) {
+    removeElement(possibleMoves, 'left')
+  } 
+  if (possibleMoves.includes('right') && gridData[body[0].y][body[0].x + 1] !== 1) {
+    removeElement(possibleMoves, 'right')
+  } 
+  if (possibleMoves.includes('up') && (gridData[body[0].y - 1]) !== undefined && gridData[body[0].y - 1][body[0].x] !== 1) {
+    removeElement(possibleMoves, 'up')
+  } 
+  if (possibleMoves.includes('down') && (gridData[body[0].y + 1]) !== undefined && gridData[body[0].y + 1][body[0].x] !== 1) {
+    removeElement(possibleMoves, 'down')
+  }
+}
+
+// function to store all the limited and complete flood fill lengths
+function storeFFLengths(floodFillResults, allLengths, allLimitedLengths) {
+  floodFillResults.forEach(function (object) {
+    allLimitedLengths.push(object.floodLengthLimited)
+    allLengths.push(object.floodLength)
+  })
 }
 
 module.exports = router

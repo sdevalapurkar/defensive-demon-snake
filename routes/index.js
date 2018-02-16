@@ -115,7 +115,7 @@ router.post('/move', function (req, res) {
   })
 
   storeFFLengths(floodFillResults, allLengths, allLimitedLengths)
-
+  
   // check if all the normal FF lengths and all the limited FF lengths are equal or if there is a preferred direction
   for (var i = 0; i < allLengths.length - 1; i++) {
     if (allLengths[i] !== allLengths[i + 1]) {
@@ -127,7 +127,7 @@ router.post('/move', function (req, res) {
       flagLimited = true
     }
   }
-
+  
   // get the move with the largest flood fill value
   var largestValueLimited = floodFillResults[0].floodLengthLimited
   var largestValue = floodFillResults[0].floodLength
@@ -144,6 +144,14 @@ router.post('/move', function (req, res) {
       largestMove = object.move
     }
   })
+
+  checkForHeadCollisions(bodyParam, otherSnakeHeads, possibleMoves)
+
+  console.log(floodFillResults)
+  console.log('flag', flag)
+  console.log('flaglimited', flagLimited)
+  console.log('largestmove', largestMove)
+  console.log('largestmovelimited', largestMoveLimited)
 
   // generate a move
   if (cornerMove !== false) { // we are at a corner
@@ -167,6 +175,7 @@ router.post('/move', function (req, res) {
 
   // last minute check
   if (generatedMove === false || generatedMove === undefined) {
+    console.log('in last min check')
     if (!flagLimited && !flag) {
       generatedMove = largestMoveLimited
     } else if (flag && !flagLimited) {
@@ -556,6 +565,45 @@ function storeFFLengths(floodFillResults, allLengths, allLimitedLengths) {
   floodFillResults.forEach(function (object) {
     allLimitedLengths.push(object.floodLengthLimited)
     allLengths.push(object.floodLength)
+  })
+}
+
+// function to check for head on head collisions
+function checkForHeadCollisions(bodyParam, otherSnakeHeads, possibleMoves) {
+  otherSnakeHeads.forEach(function (object) {
+    if (bodyParam.you.length > object.length) {
+      // if snake head two spaces to right of my head
+      if (bodyParam.you.body.data[0].x + 2 !== undefined && object.x === bodyParam.you.body.data[0].x + 2 && object.y === bodyParam.you.body.data[0].y) {
+        possibleMoves.push('right')
+        // if snake head two spaces to left of my head
+      } else if (bodyParam.you.body.data[0].x - 2 !== undefined && object.x === bodyParam.you.body.data[0].x - 2 && object.y === bodyParam.you.body.data[0].y) {
+        possibleMoves.push('left')
+        // if snake head two spaces above my head
+      } else if (bodyParam.you.body.data[0].y - 2 !== undefined && object.y === bodyParam.you.body.data[0].y - 2 && object.x === bodyParam.you.body.data[0].x) {
+        possibleMoves.push('up')
+        // if snake head two spaces below my head
+      } else if (bodyParam.you.body.data[0].y + 2 !== undefined && object.y === bodyParam.you.body.data[0].y + 2 && object.x === bodyParam.you.body.data[0].x) {
+        possibleMoves.push('down')
+        // if snake head one down
+      } else if (bodyParam.you.body.data[0].y + 1 !== undefined && object.y === bodyParam.you.body.data[0].y + 1) {
+        // and one to right of my head
+        if (bodyParam.you.body.data[0].x + 1 !== undefined && object.x === bodyParam.you.body.data[0].x + 1) {
+          possibleMoves.push('right', 'down')
+          // and one to left of my head
+        } else if (bodyParam.you.body.data[0].x - 1 !== undefined && object.x === bodyParam.you.body.data[0].x - 1) {
+          possibleMoves.push('left', 'down')
+        }
+        // if snake head one above
+      } else if (bodyParam.you.body.data[0].y - 1 !== undefined && object.y === bodyParam.you.body.data[0].y - 1) {
+        // and one to right of my head
+        if (bodyParam.you.body.data[0].x + 1 !== undefined && object.x === bodyParam.you.body.data[0].x + 1) {
+          possibleMoves.push('right', 'up')
+          // and one to left of my head
+        } else if (bodyParam.you.body.data[0].x - 1 !== undefined && object.x === bodyParam.you.body.data[0].x - 1) {
+          possibleMoves.push('left', 'up')
+        }
+      }
+    }
   })
 }
 

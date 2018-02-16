@@ -44,7 +44,7 @@ router.post('/move', function (req, res) {
   var myID = req.body.you.id
   var otherSnakeHeads = []
   var updatedOtherSnakeHeads = []
-  var floodFillDepth = 8
+  var floodFillDepth = 5
   var flagLimited = false
   var flag = false
   var allLimitedLengths = []
@@ -61,11 +61,13 @@ router.post('/move', function (req, res) {
   initializeFFGrid(backupGrid, gridData)
   removeWallMoves(possibleMoves, possibleWallMoves)
   removeSnakeCollisionMoves(possibleMoves, gridData, body)
+  checkForHeadCollisions(bodyParam, otherSnakeHeads, possibleMoves)
+
+  console.log(gridData)
 
   // perform a flood fill
   possibleMoves.forEach(function (move) {
     var testOnFlood = []
-    var testOnFloodSmaller = []
 
     if (move === 'up' && body[0].y - 1 > -1) {
       seed = [body[0].x, body[0].y - 1]
@@ -74,7 +76,6 @@ router.post('/move', function (req, res) {
         seed: seed,
         onFlood: function (x, y) {
           testOnFlood.push(dist([x, y], [body[0].x, body[0].y]))
-          testOnFloodSmaller.push(dist([x, y], [body[0].x, body[0].y]))
         }
       })
       floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length })
@@ -85,7 +86,6 @@ router.post('/move', function (req, res) {
         seed: seed,
         onFlood: function (x, y) {
           testOnFlood.push(dist([x, y], [body[0].x, body[0].y]))
-          testOnFloodSmaller.push(dist([x, y], [body[0].x, body[0].y]))
         }
       })
       floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length })
@@ -96,7 +96,6 @@ router.post('/move', function (req, res) {
         seed: seed,
         onFlood: function (x, y) {
           testOnFlood.push(dist([x, y], [body[0].x, body[0].y]))
-          testOnFloodSmaller.push(dist([x, y], [body[0].x, body[0].y]))
         }
       })
       floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length })
@@ -107,12 +106,13 @@ router.post('/move', function (req, res) {
         seed: seed,
         onFlood: function (x, y) {
           testOnFlood.push(dist([x, y], [body[0].x, body[0].y]))
-          testOnFloodSmaller.push(dist([x, y], [body[0].x, body[0].y]))
         }
       })
       floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length })
     }
   })
+
+  console.log(floodFillResults)
 
   storeFFLengths(floodFillResults, allLengths, allLimitedLengths)
   
@@ -145,9 +145,7 @@ router.post('/move', function (req, res) {
     }
   })
 
-  checkForHeadCollisions(bodyParam, otherSnakeHeads, possibleMoves)
-
-  console.log(floodFillResults)
+  console.log(possibleMoves)
   console.log('flag', flag)
   console.log('flaglimited', flagLimited)
   console.log('largestmove', largestMove)

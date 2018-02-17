@@ -11,7 +11,7 @@ router.post('/start', function (req, res) {
     color: "#FF69B4",
     name: "Shiffany",
     secondary_color: "#CD5C5C",
-    head_url: "https://rdbrck.com/wp-content/uploads/2016/09/shift_icon@2x.png",
+    head_url: "https://sdevalapurkar.github.io/personal-website/img/Shiffany.png",
     tail_type: 'curled',
     head_type: 'bendr'
   }
@@ -31,10 +31,12 @@ router.post('/move', function (req, res) {
   var snakes = req.body.snakes.data
   var grid = new PF.Grid(req.body.width, req.body.height)
   var backupGrid = grid.clone()
+  var noFakeHeadsGrid = grid.clone()
   var closestFood = []
   var foodMove = ''
   var tailMove = ''
   var gridData = []
+  var noFakeHeadsGridData = []
   var largest = 0
   var largestFloodFillMove
   var seed
@@ -56,14 +58,16 @@ router.post('/move', function (req, res) {
   storeHeadsOfOtherSnakes(snakes, otherSnakeHeads, myID)
   appendFakeHeadsToSnakes(otherSnakeHeads, updatedOtherSnakeHeads, bodyParam)
   createEmptyFFGrid(bodyParam, gridData)
+  createNoFakeHeadsEmptyFFGrid(bodyParam, noFakeHeadsGridData)
   setUnwalkableGridAreas(body, backupGrid, snakes, updatedOtherSnakeHeads)
+  setUnwalkableNoFakeHeadsGridAreas(body, noFakeHeadsGrid, snakes, otherSnakeHeads)
   setWalkableGridAreas(backupGrid, body, snakes, myID)
+  setWalkableNoFakeHeadsGridAreas(noFakeHeadsGrid, body, snakes, myID)
   initializeFFGrid(backupGrid, gridData)
+  initializeNoFakeHeadsFFGrid(noFakeHeadsGrid, noFakeHeadsGridData)
   removeWallMoves(possibleMoves, possibleWallMoves)
   removeSnakeCollisionMoves(possibleMoves, gridData, body)
-  checkForHeadCollisions(bodyParam, otherSnakeHeads, possibleMoves)
-
-  console.log(gridData)
+  checkForHeadCollisions(bodyParam, otherSnakeHeads, possibleMoves, noFakeHeadsGridData)
 
   // perform a flood fill
   possibleMoves.forEach(function (move) {
@@ -145,7 +149,6 @@ router.post('/move', function (req, res) {
     }
   })
 
-  console.log(possibleMoves)
   console.log('flag', flag)
   console.log('flaglimited', flagLimited)
   console.log('largestmove', largestMove)
@@ -290,7 +293,7 @@ function pathToFood(closestFood, data, grid, floodFillResults, flag, flagLimited
     if (path[1][0] === (bodyData[0].x - 1) && checkPossibleMoves.includes('left')) { // go left
       if (!flag && !flagLimited) {
         return 'left'
-      } else if (flagLimited && largestMoveLimited === 'left') {
+      } else if (flagLimited && largestMoveLimited === 'left') { // NEED TO ADJUST THIS.... all these conditionals
         return 'left'
       } else if (flag && largestMove === 'left') {
         return 'left'
@@ -462,7 +465,7 @@ function appendFakeHeadsToSnakes(otherSnakeHeads, updatedOtherSnakeHeads, bodyPa
   })
 }
 
-// function to create the empty new grid 2d array for flood fill
+// function to create the empty new grid 2d array for flood fill with fake heads
 function createEmptyFFGrid(bodyParam, gridData) {
   for (var j = 0; j < bodyParam.height; j++) {
     var row = []
@@ -473,7 +476,18 @@ function createEmptyFFGrid(bodyParam, gridData) {
   }
 }
 
-// function to mark all the unwalkable parts of the grid
+// function to create the empty new grid 2d array for flood fill with no fake heads
+function createNoFakeHeadsEmptyFFGrid(bodyParam, noFakeHeadsGridData) {
+  for (var j = 0; j < bodyParam.height; j++) {
+    var row = []
+    for (var k = 0; k < bodyParam.width; k++) {
+      row.push(1)
+    }
+    noFakeHeadsGridData.push(row)
+  }
+}
+
+// function to mark all the unwalkable parts of the grid with fake heads
 function setUnwalkableGridAreas(body, backupGrid, snakes, updatedOtherSnakeHeads) {
   // set all body points as unwalkable in the backup grid
   body.forEach(function (object) {
@@ -493,7 +507,22 @@ function setUnwalkableGridAreas(body, backupGrid, snakes, updatedOtherSnakeHeads
   })
 }
 
-// function to mark all the walkable parts of the grid
+// function to mark all the unwalkable parts of the grid without fake heads
+function setUnwalkableNoFakeHeadsGridAreas(body, noFakeHeadsGrid, snakes, otherSnakeHeads) {
+  // set all body points as unwalkable in the backup grid
+  body.forEach(function (object) {
+    noFakeHeadsGrid.setWalkableAt(object.x, object.y, false)
+  })
+
+  // set all snake points as unwalkable in the backup grid
+  snakes.forEach(function (snake) {
+    snake.body.data.forEach(function (object) {
+      noFakeHeadsGrid.setWalkableAt(object.x, object.y, false)
+    })
+  })
+}
+
+// function to mark all the walkable parts of the grid with fake heads
 function setWalkableGridAreas(backupGrid, body, snakes, myID) {
   // need to set all places where body of myself or other snakes will disappear as walkable
   snakes.forEach(function (snake) {
@@ -515,13 +544,48 @@ function setWalkableGridAreas(backupGrid, body, snakes, myID) {
   })
 }
 
-// function to initialize the grid for flood fill with 0s if not walkable
+// function to mark all the walkable parts of the grid without fake heads
+function setWalkableNoFakeHeadsGridAreas(noFakeHeadsGrid, body, snakes, myID) {
+  // need to set all places where body of myself or other snakes will disappear as walkable
+  snakes.forEach(function (snake) {
+    if (snake.id !== myID && snake.health !== 100) {
+      console.log('snake body data not reversed:', snake.body.data)
+      snake.body.data.forEach(function (object, index) {
+        if (dist([body[0].x, body[0].y], [object.x, object.y]) > index) {
+          noFakeHeadsGrid.setWalkableAt(object.x, object.y, true)
+        }
+      })
+    } else {
+        if (snake.length > 3 && snake.health < 100) {
+          snake.body.data.forEach(function (object, index) {
+          if (dist([body[0].x, body[0].y], [object.x, object.y]) > index) {
+            noFakeHeadsGrid.setWalkableAt(object.x, object.y, true)
+          }
+        })
+      }
+    }
+  })
+}
+
+// function to initialize the grid for flood fill with 0s if not walkable with fake heads
 function initializeFFGrid(backupGrid, gridData) {
   backupGrid.nodes.forEach(function (node) {
     node.forEach(function (object) {
       gridData[object.x] = gridData[object.x] || []
       if (!object.walkable) {
         gridData[object.y][object.x] = 0
+      }
+    })
+  })
+}
+
+// function to initialize the grid for flood fill with 0s if not walkable without fake heads
+function initializeNoFakeHeadsFFGrid(noFakeHeadsGrid, noFakeHeadsGridData) {
+  noFakeHeadsGrid.nodes.forEach(function (node) {
+    node.forEach(function (object) {
+      noFakeHeadsGridData[object.x] = noFakeHeadsGridData[object.x] || []
+      if (!object.walkable) {
+        noFakeHeadsGridData[object.y][object.x] = 0
       }
     })
   })
@@ -567,38 +631,72 @@ function storeFFLengths(floodFillResults, allLengths, allLimitedLengths) {
 }
 
 // function to check for head on head collisions
-function checkForHeadCollisions(bodyParam, otherSnakeHeads, possibleMoves) {
+function checkForHeadCollisions(bodyParam, otherSnakeHeads, possibleMoves, gridData) {
+  console.log(otherSnakeHeads)
   otherSnakeHeads.forEach(function (object) {
     if (bodyParam.you.length > object.length) {
       // if snake head two spaces to right of my head
       if (bodyParam.you.body.data[0].x + 2 !== undefined && object.x === bodyParam.you.body.data[0].x + 2 && object.y === bodyParam.you.body.data[0].y) {
-        possibleMoves.push('right')
+        if (gridData[object.y][bodyParam.you.body.data[0].x + 1] !== 0) {
+          possibleMoves.push('right')
+        }
         // if snake head two spaces to left of my head
       } else if (bodyParam.you.body.data[0].x - 2 !== undefined && object.x === bodyParam.you.body.data[0].x - 2 && object.y === bodyParam.you.body.data[0].y) {
-        possibleMoves.push('left')
+        if (gridData[object.y][bodyParam.you.body.data[0].x - 1] !== 0) {
+          possibleMoves.push('left')
+        }
         // if snake head two spaces above my head
       } else if (bodyParam.you.body.data[0].y - 2 !== undefined && object.y === bodyParam.you.body.data[0].y - 2 && object.x === bodyParam.you.body.data[0].x) {
-        possibleMoves.push('up')
+        if (gridData[bodyParam.you.body.data[0].y - 1][object.x] !== 0) {
+          possibleMoves.push('up')
+        }
         // if snake head two spaces below my head
       } else if (bodyParam.you.body.data[0].y + 2 !== undefined && object.y === bodyParam.you.body.data[0].y + 2 && object.x === bodyParam.you.body.data[0].x) {
-        possibleMoves.push('down')
+        if (gridData[bodyParam.you.body.data[0].y + 1][object.x] !== 0) {
+          possibleMoves.push('down')
+        }
         // if snake head one down
       } else if (bodyParam.you.body.data[0].y + 1 !== undefined && object.y === bodyParam.you.body.data[0].y + 1) {
+        console.log('snake one below me')
         // and one to right of my head
         if (bodyParam.you.body.data[0].x + 1 !== undefined && object.x === bodyParam.you.body.data[0].x + 1) {
-          possibleMoves.push('right', 'down')
+          if (gridData[bodyParam.you.body.data[0].y + 1][bodyParam.you.body.data[0].x] !== 0) {
+            possibleMoves.push('down')
+          }
+          if (gridData[bodyParam.you.body.data[0].y][bodyParam.you.body.data[0].x + 1] !== 0) {
+            possibleMoves.push('right')
+          }
           // and one to left of my head
         } else if (bodyParam.you.body.data[0].x - 1 !== undefined && object.x === bodyParam.you.body.data[0].x - 1) {
-          possibleMoves.push('left', 'down')
+          console.log('snake one left')
+          console.log(bodyParam.you.body.data[0].y + 1, bodyParam.you.body.data[0].x)
+          console.log(gridData[bodyParam.you.body.data[0].y + 1][bodyParam.you.body.data[0].x])
+          if (gridData[bodyParam.you.body.data[0].y + 1][bodyParam.you.body.data[0].x] !== 0) {
+            console.log('push down')
+            possibleMoves.push('down')
+          }
+          if (gridData[bodyParam.you.body.data[0].y][bodyParam.you.body.data[0].x - 1] !== 0) {
+            possibleMoves.push('left')
+          }
         }
         // if snake head one above
       } else if (bodyParam.you.body.data[0].y - 1 !== undefined && object.y === bodyParam.you.body.data[0].y - 1) {
         // and one to right of my head
         if (bodyParam.you.body.data[0].x + 1 !== undefined && object.x === bodyParam.you.body.data[0].x + 1) {
-          possibleMoves.push('right', 'up')
+          if (gridData[bodyParam.you.body.data[0].y - 1][bodyParam.you.body.data[0].x] !== 0) {
+            possibleMoves.push('up')
+          }
+          if (gridData[bodyParam.you.body.data[0].y][bodyParam.you.body.data[0].x + 1] !== 0) {
+            possibleMoves.push('right')
+          }
           // and one to left of my head
         } else if (bodyParam.you.body.data[0].x - 1 !== undefined && object.x === bodyParam.you.body.data[0].x - 1) {
-          possibleMoves.push('left', 'up')
+          if (gridData[bodyParam.you.body.data[0].y - 1][bodyParam.you.body.data[0].x] !== 0) {
+            possibleMoves.push('up')
+          }
+          if (gridData[bodyParam.you.body.data[0].y][bodyParam.you.body.data[0].x - 1] !== 0) {
+            possibleMoves.push('left')
+          }
         }
       }
     }

@@ -158,7 +158,7 @@ router.post('/move', function (req, res) {
   if (cornerMove !== false) { // we are at a corner
     generatedMove = cornerMove
   } else {
-    if (req.body.you.health < 85) { // we are hungry
+    if (req.body.you.health < 80) { // we are hungry
       closestFood = foodSearch(req.body)
       foodMove = pathToFood(closestFood, req.body, backupGrid, floodFillResults, flag, flagLimited, largestMove, largestMoveLimited)
       if (foodMove !== false) {
@@ -202,24 +202,9 @@ function pathToTail(data, grid, possibleMoves, flag, flagLimited, largestMove, l
   var bodyData = data.you.body.data
   var finder = new PF.AStarFinder()
   var gridBackup = grid.clone()
-
-  // set parts of the grid that are unwalkable
-  bodyData.forEach(function (object) {
-    gridBackup.setWalkableAt(object.x, object.y, false)
-  })
-  data.snakes.data.forEach(function (snake) {
-    snake.body.data.forEach(function (object) {
-      gridBackup.setWalkableAt(object.x, object.y, false)
-    })
-  })
-
-  // set our own head and tail as walkable points
-  gridBackup.setWalkableAt(bodyData[0].x, bodyData[0].y, true)
-  gridBackup.setWalkableAt(bodyData[bodyData.length - 1].x, bodyData[bodyData.length - 1].y, true)
-
   var path = finder.findPath(bodyData[0].x, bodyData[0].y, bodyData[bodyData.length - 1].x, bodyData[bodyData.length - 1].y, gridBackup)
 
-  if (path.length === 0 || path.length === 1) {
+  if (path.length === 0) {
     return false
   }
 
@@ -248,44 +233,31 @@ function pathToFood(closestFood, data, grid, floodFillResults, flag, flagLimited
   var snakes = data.snakes.data
   var finder = new PF.AStarFinder()
   var gridBackup = grid.clone()
-
-  bodyData.forEach(function (object) {
-    gridBackup.setWalkableAt(object.x, object.y, false)
-  })
-  gridBackup.setWalkableAt(bodyData[bodyData.length - 1].x, bodyData[bodyData.length - 1].y, true)
-
-  data.snakes.data.forEach(function (snake) {
-    snake.body.data.forEach(function (object) {
-      gridBackup.setWalkableAt(object.x, object.y, false)
-    })
-  })
-
   var path = finder.findPath(bodyData[0].x, bodyData[0].y, closestFood[1].x, closestFood[1].y, gridBackup)
-
-  if (path.length === 0) {
-    return false
-  }
-
   var checkPossibleMoves = []
   floodFillResults.forEach(function (object) {
     checkPossibleMoves.push(object.move)
   })
+
+  if (path.length === 0) {
+    return false
+  }
   
   if (path[1][0] === bodyData[0].x) { // don't turn left or right
     if (path[1][1] === bodyData[0].y - 1 && checkPossibleMoves.includes('up')) { // go up
       if (!flag && !flagLimited) {
         return 'up'
-      } else if (flagLimited && largestMoveLimited === 'up') {
+      } else if (!flag && flagLimited && largestMoveLimited === 'up') {
         return 'up'
-      } else if (flag && largestMove === 'up') {
+      } else if (!flagLimited && flag && largestMove === 'up') {
         return 'up'
       }
     } else if (path[1][1] === (bodyData[0].y + 1) && checkPossibleMoves.includes('down')) { // go down
       if (!flag && !flagLimited) {
         return 'down'
-      } else if (flagLimited && largestMoveLimited === 'down') {
+      } else if (!flag && flagLimited && largestMoveLimited === 'down') {
         return 'down'
-      } else if (flag && largestMove === 'down') {
+      } else if (!flagLimited && flag && largestMove === 'down') {
         return 'down'
       }
     }
@@ -293,17 +265,17 @@ function pathToFood(closestFood, data, grid, floodFillResults, flag, flagLimited
     if (path[1][0] === (bodyData[0].x - 1) && checkPossibleMoves.includes('left')) { // go left
       if (!flag && !flagLimited) {
         return 'left'
-      } else if (flagLimited && largestMoveLimited === 'left') { // NEED TO ADJUST THIS.... all these conditionals
+      } else if (!flag && flagLimited && largestMoveLimited === 'left') { // NEED TO ADJUST THIS.... all these conditionals
         return 'left'
-      } else if (flag && largestMove === 'left') {
+      } else if (!flagLimited && flag && largestMove === 'left') {
         return 'left'
       }
     } else if (path[1][0] === bodyData[0].x + 1 && checkPossibleMoves.includes('right')) { // go right
       if (!flag && !flagLimited) {
         return 'right'
-      } else if (flagLimited && largestMoveLimited === 'right') {
+      } else if (!flag && flagLimited && largestMoveLimited === 'right') {
         return 'right'
-      } else if (flag && largestMove === 'right') {
+      } else if (!flagLimited && flag && largestMove === 'right') {
         return 'right'
       }
     }
@@ -632,7 +604,6 @@ function storeFFLengths(floodFillResults, allLengths, allLimitedLengths) {
 
 // function to check for head on head collisions
 function checkForHeadCollisions(bodyParam, otherSnakeHeads, possibleMoves, gridData) {
-  console.log(otherSnakeHeads)
   otherSnakeHeads.forEach(function (object) {
     if (bodyParam.you.length > object.length) {
       // if snake head two spaces to right of my head
@@ -657,7 +628,6 @@ function checkForHeadCollisions(bodyParam, otherSnakeHeads, possibleMoves, gridD
         }
         // if snake head one down
       } else if (bodyParam.you.body.data[0].y + 1 !== undefined && object.y === bodyParam.you.body.data[0].y + 1) {
-        console.log('snake one below me')
         // and one to right of my head
         if (bodyParam.you.body.data[0].x + 1 !== undefined && object.x === bodyParam.you.body.data[0].x + 1) {
           if (gridData[bodyParam.you.body.data[0].y + 1][bodyParam.you.body.data[0].x] !== 0) {
@@ -668,11 +638,7 @@ function checkForHeadCollisions(bodyParam, otherSnakeHeads, possibleMoves, gridD
           }
           // and one to left of my head
         } else if (bodyParam.you.body.data[0].x - 1 !== undefined && object.x === bodyParam.you.body.data[0].x - 1) {
-          console.log('snake one left')
-          console.log(bodyParam.you.body.data[0].y + 1, bodyParam.you.body.data[0].x)
-          console.log(gridData[bodyParam.you.body.data[0].y + 1][bodyParam.you.body.data[0].x])
           if (gridData[bodyParam.you.body.data[0].y + 1][bodyParam.you.body.data[0].x] !== 0) {
-            console.log('push down')
             possibleMoves.push('down')
           }
           if (gridData[bodyParam.you.body.data[0].y][bodyParam.you.body.data[0].x - 1] !== 0) {

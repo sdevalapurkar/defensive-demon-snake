@@ -50,7 +50,7 @@ function pathToTail(data, grid, possibleMoves, flag, flagLimited, largestMove, l
 }
 
 // function that returns a move that gets you closest to the nearest piece of food if a path exists to the food
-function pathToFood(closestFood, data, grid, floodFillResults, flag, flagLimited, largestMove, largestMoveLimited) {
+function pathToFood(closestFood, data, grid, floodFillResults, flag, flagLimited, largestMove, largestMoveLimited, largestValue, largestValueLimited) {
   var bodyData = data.you.body.data
   var snakes = data.snakes.data
   var finder = new PF.AStarFinder()
@@ -60,6 +60,10 @@ function pathToFood(closestFood, data, grid, floodFillResults, flag, flagLimited
   floodFillResults.forEach(function (object) {
     checkPossibleMoves.push(object.move)
   })
+
+  console.log(largestValue, largestValueLimited)
+  console.log('flag, flagLimited, largestMove, largestMoveLimited', flag, flagLimited, largestMove, largestMoveLimited)
+  console.log('path to food', path)
 
   if (path.length === 0) {
     return false
@@ -457,11 +461,6 @@ function checkForHeadCollisions(bodyParam, otherSnakeHeads, possibleMoves, gridD
           if (gridData[bodyParam.you.body.data[0].y][bodyParam.you.body.data[0].x + 1] !== 0) {
             possibleMoves.push('right')
           }
-          // for (var i = 0; i < possibleMoves.length; i++) {
-          //   if (possibleMoves[i] !== 'right' && possibleMoves[i] !== 'down') {
-          //     removeElement(possibleMoves, possibleMoves[i])
-          //   }
-          // }
           // and one to left of my head
         } else if (bodyParam.you.body.data[0].x - 1 !== undefined && object.x === bodyParam.you.body.data[0].x - 1) {
           if (gridData[bodyParam.you.body.data[0].y + 1][bodyParam.you.body.data[0].x] !== 0) {
@@ -470,11 +469,6 @@ function checkForHeadCollisions(bodyParam, otherSnakeHeads, possibleMoves, gridD
           if (gridData[bodyParam.you.body.data[0].y][bodyParam.you.body.data[0].x - 1] !== 0) {
             possibleMoves.push('left')
           }
-          // for (var i = 0; i < possibleMoves.length; i++) {
-          //   if (possibleMoves[i] !== 'left' && possibleMoves[i] !== 'down') {
-          //     removeElement(possibleMoves, possibleMoves[i])
-          //   }
-          // }
         }
         // if snake head one above
       } else if (bodyParam.you.body.data[0].y - 1 !== undefined && object.y === bodyParam.you.body.data[0].y - 1) {
@@ -486,11 +480,6 @@ function checkForHeadCollisions(bodyParam, otherSnakeHeads, possibleMoves, gridD
           if (gridData[bodyParam.you.body.data[0].y][bodyParam.you.body.data[0].x + 1] !== 0) {
             possibleMoves.push('right')
           }
-          // for (var i = 0; i < possibleMoves.length; i++) {
-          //   if (possibleMoves[i] !== 'right' && possibleMoves[i] !== 'up') {
-          //     removeElement(possibleMoves, possibleMoves[i])
-          //   }
-          // }
           // and one to left of my head
         } else if (bodyParam.you.body.data[0].x - 1 !== undefined && object.x === bodyParam.you.body.data[0].x - 1) {
           if (gridData[bodyParam.you.body.data[0].y - 1][bodyParam.you.body.data[0].x] !== 0) {
@@ -499,11 +488,6 @@ function checkForHeadCollisions(bodyParam, otherSnakeHeads, possibleMoves, gridD
           if (gridData[bodyParam.you.body.data[0].y][bodyParam.you.body.data[0].x - 1] !== 0) {
             possibleMoves.push('left')
           }
-          // for (var i = 0; i < possibleMoves.length; i++) {
-          //   if (possibleMoves[i] !== 'left' && possibleMoves[i] !== 'up') {
-          //     removeElement(possibleMoves, possibleMoves[i])
-          //   }
-          // }
         }
       }
     }
@@ -740,7 +724,7 @@ router.post('/move', function (req, res) {
   } else {
     if (req.body.you.health < 80) { // we are hungry
       closestFood = foodSearch(req.body)
-      foodMove = pathToFood(closestFood, req.body, backupGrid, floodFillResults, flag, flagLimited, largestMove, largestMoveLimited)
+      foodMove = pathToFood(closestFood, req.body, backupGrid, floodFillResults, flag, flagLimited, largestMove, largestMoveLimited, largestValue, largestValueLimited)
       if (foodMove !== false) {
         generatedMove = foodMove
       } else {

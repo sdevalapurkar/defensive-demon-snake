@@ -343,7 +343,6 @@ function setWalkableNoFakeHeadsGridAreas(noFakeHeadsGrid, body, snakes, myID) {
   // need to set all places where body of myself or other snakes will disappear as walkable
   snakes.forEach(function (snake) {
     if (snake.id !== myID && snake.health !== 100) {
-      console.log('snake body data not reversed:', snake.body.data)
       snake.body.data.forEach(function (object, index) {
         if (dist([body[0].x, body[0].y], [object.x, object.y]) > index) {
           noFakeHeadsGrid.setWalkableAt(object.x, object.y, true)
@@ -458,6 +457,11 @@ function checkForHeadCollisions(bodyParam, otherSnakeHeads, possibleMoves, gridD
           if (gridData[bodyParam.you.body.data[0].y][bodyParam.you.body.data[0].x + 1] !== 0) {
             possibleMoves.push('right')
           }
+          // for (var i = 0; i < possibleMoves.length; i++) {
+          //   if (possibleMoves[i] !== 'right' && possibleMoves[i] !== 'down') {
+          //     removeElement(possibleMoves, possibleMoves[i])
+          //   }
+          // }
           // and one to left of my head
         } else if (bodyParam.you.body.data[0].x - 1 !== undefined && object.x === bodyParam.you.body.data[0].x - 1) {
           if (gridData[bodyParam.you.body.data[0].y + 1][bodyParam.you.body.data[0].x] !== 0) {
@@ -466,6 +470,11 @@ function checkForHeadCollisions(bodyParam, otherSnakeHeads, possibleMoves, gridD
           if (gridData[bodyParam.you.body.data[0].y][bodyParam.you.body.data[0].x - 1] !== 0) {
             possibleMoves.push('left')
           }
+          // for (var i = 0; i < possibleMoves.length; i++) {
+          //   if (possibleMoves[i] !== 'left' && possibleMoves[i] !== 'down') {
+          //     removeElement(possibleMoves, possibleMoves[i])
+          //   }
+          // }
         }
         // if snake head one above
       } else if (bodyParam.you.body.data[0].y - 1 !== undefined && object.y === bodyParam.you.body.data[0].y - 1) {
@@ -477,6 +486,11 @@ function checkForHeadCollisions(bodyParam, otherSnakeHeads, possibleMoves, gridD
           if (gridData[bodyParam.you.body.data[0].y][bodyParam.you.body.data[0].x + 1] !== 0) {
             possibleMoves.push('right')
           }
+          // for (var i = 0; i < possibleMoves.length; i++) {
+          //   if (possibleMoves[i] !== 'right' && possibleMoves[i] !== 'up') {
+          //     removeElement(possibleMoves, possibleMoves[i])
+          //   }
+          // }
           // and one to left of my head
         } else if (bodyParam.you.body.data[0].x - 1 !== undefined && object.x === bodyParam.you.body.data[0].x - 1) {
           if (gridData[bodyParam.you.body.data[0].y - 1][bodyParam.you.body.data[0].x] !== 0) {
@@ -485,6 +499,11 @@ function checkForHeadCollisions(bodyParam, otherSnakeHeads, possibleMoves, gridD
           if (gridData[bodyParam.you.body.data[0].y][bodyParam.you.body.data[0].x - 1] !== 0) {
             possibleMoves.push('left')
           }
+          // for (var i = 0; i < possibleMoves.length; i++) {
+          //   if (possibleMoves[i] !== 'left' && possibleMoves[i] !== 'up') {
+          //     removeElement(possibleMoves, possibleMoves[i])
+          //   }
+          // }
         }
       }
     }
@@ -561,7 +580,10 @@ router.post('/move', function (req, res) {
         getter: getter,
         seed: seed,
         onFlood: function (x, y) {
-          testOnFlood.push(dist([x, y], [body[0].x, body[0].y]))
+          var finder = new PF.AStarFinder()
+          var gridBackup = backupGrid.clone()
+          var path = finder.findPath(x, y, body[0].x, body[0].y - 1, gridBackup)
+          testOnFlood.push(path.length)
         }
       })
       floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length })
@@ -571,7 +593,10 @@ router.post('/move', function (req, res) {
         getter: getter,
         seed: seed,
         onFlood: function (x, y) {
-          testOnFlood.push(dist([x, y], [body[0].x, body[0].y]))
+          var finder = new PF.AStarFinder()
+          var gridBackup = backupGrid.clone()
+          var path = finder.findPath(x, y, body[0].x, body[0].y + 1, gridBackup)
+          testOnFlood.push(path.length)
         }
       })
       floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length })
@@ -581,7 +606,10 @@ router.post('/move', function (req, res) {
         getter: getter,
         seed: seed,
         onFlood: function (x, y) {
-          testOnFlood.push(dist([x, y], [body[0].x, body[0].y]))
+          var finder = new PF.AStarFinder()
+          var gridBackup = backupGrid.clone()
+          var path = finder.findPath(x, y, body[0].x - 1, body[0].y, gridBackup)
+          testOnFlood.push(path.length)
         }
       })
       floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length })
@@ -591,7 +619,10 @@ router.post('/move', function (req, res) {
         getter: getter,
         seed: seed,
         onFlood: function (x, y) {
-          testOnFlood.push(dist([x, y], [body[0].x, body[0].y]))
+          var finder = new PF.AStarFinder()
+          var gridBackup = backupGrid.clone()
+          var path = finder.findPath(x, y, body[0].x + 1, body[0].y, gridBackup)
+          testOnFlood.push(path.length)
         }
       })
       floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length })
@@ -736,7 +767,6 @@ router.post('/move', function (req, res) {
       generatedMove = largestMove
     } else {
       console.log('last minute test case')
-      console.log(bodyParam)
       var bestValue
       noFakeHeadsFFResults.forEach(function (object) {
         if (object.move === largestMoveLimitedNoFakeHeads) {

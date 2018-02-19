@@ -19,184 +19,6 @@ router.post('/start', function (req, res) {
   return res.json(data)
 })
 
-// Handle POST request to '/move'
-router.post('/move', function (req, res) {
-  // define some global variables
-  var taunts = ["Can't beat Redbrickers at ping pong", "Meet the spinmaaaaassstaaaaa", "Let's go for a spinnnn"]
-  var generatedMove = undefined
-  var cornerMove = checkCorners(req.body)
-  var possibleMoves = ['up', 'down', 'left', 'right']
-  var bodyParam = req.body
-  var body = req.body.you.body.data
-  var snakes = req.body.snakes.data
-  var grid = new PF.Grid(req.body.width, req.body.height)
-  var backupGrid = grid.clone()
-  var noFakeHeadsGrid = grid.clone()
-  var closestFood = []
-  var foodMove = ''
-  var tailMove = ''
-  var gridData = []
-  var noFakeHeadsGridData = []
-  var largest = 0
-  var largestFloodFillMove
-  var seed
-  var result
-  var floodFillResults = []
-  var possibleWallMoves = checkWalls(req.body)
-  var myID = req.body.you.id
-  var otherSnakeHeads = []
-  var updatedOtherSnakeHeads = []
-  var floodFillDepth = 5
-  var flagLimited = false
-  var flag = false
-  var allLimitedLengths = []
-  var allLengths = []
-  var getter = function (x, y) {
-    return gridData[y][x]
-  }
-
-  storeHeadsOfOtherSnakes(snakes, otherSnakeHeads, myID)
-  appendFakeHeadsToSnakes(otherSnakeHeads, updatedOtherSnakeHeads, bodyParam)
-  createEmptyFFGrid(bodyParam, gridData)
-  createNoFakeHeadsEmptyFFGrid(bodyParam, noFakeHeadsGridData)
-  setUnwalkableGridAreas(body, backupGrid, snakes, updatedOtherSnakeHeads)
-  setUnwalkableNoFakeHeadsGridAreas(body, noFakeHeadsGrid, snakes, otherSnakeHeads)
-  setWalkableGridAreas(backupGrid, body, snakes, myID)
-  setWalkableNoFakeHeadsGridAreas(noFakeHeadsGrid, body, snakes, myID)
-  initializeFFGrid(backupGrid, gridData)
-  initializeNoFakeHeadsFFGrid(noFakeHeadsGrid, noFakeHeadsGridData)
-  removeWallMoves(possibleMoves, possibleWallMoves)
-  removeSnakeCollisionMoves(possibleMoves, gridData, body)
-  checkForHeadCollisions(bodyParam, otherSnakeHeads, possibleMoves, noFakeHeadsGridData)
-
-  // perform a flood fill
-  possibleMoves.forEach(function (move) {
-    var testOnFlood = []
-
-    if (move === 'up' && body[0].y - 1 > -1) {
-      seed = [body[0].x, body[0].y - 1]
-      result = floodFill({
-        getter: getter,
-        seed: seed,
-        onFlood: function (x, y) {
-          testOnFlood.push(dist([x, y], [body[0].x, body[0].y]))
-        }
-      })
-      floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length })
-    } else if (move === 'down' && body[0].y + 1 < bodyParam.height) {
-      seed = [body[0].x, body[0].y + 1]
-      result = floodFill({
-        getter: getter,
-        seed: seed,
-        onFlood: function (x, y) {
-          testOnFlood.push(dist([x, y], [body[0].x, body[0].y]))
-        }
-      })
-      floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length })
-    } else if (move === 'left' && body[0].x - 1 > -1) {
-      seed = [body[0].x - 1, body[0].y]
-      result = floodFill({
-        getter: getter,
-        seed: seed,
-        onFlood: function (x, y) {
-          testOnFlood.push(dist([x, y], [body[0].x, body[0].y]))
-        }
-      })
-      floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length })
-    } else if (move === 'right' && body[0].x + 1 < bodyParam.width) {
-      seed = [body[0].x + 1, body[0].y]
-      result = floodFill({
-        getter: getter,
-        seed: seed,
-        onFlood: function (x, y) {
-          testOnFlood.push(dist([x, y], [body[0].x, body[0].y]))
-        }
-      })
-      floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length })
-    }
-  })
-
-  console.log(floodFillResults)
-
-  storeFFLengths(floodFillResults, allLengths, allLimitedLengths)
-  
-  // check if all the normal FF lengths and all the limited FF lengths are equal or if there is a preferred direction
-  for (var i = 0; i < allLengths.length - 1; i++) {
-    if (allLengths[i] !== allLengths[i + 1]) {
-      flag = true
-    }
-  }
-  for (var j = 0; j < allLimitedLengths.length - 1; j++) {
-    if (allLimitedLengths[j] !== allLimitedLengths[j + 1]) {
-      flagLimited = true
-    }
-  }
-  
-  // get the move with the largest flood fill value
-  var largestValueLimited = floodFillResults[0].floodLengthLimited
-  var largestValue = floodFillResults[0].floodLength
-  var largestMove = floodFillResults[0].move
-  var largestMoveLimited = floodFillResults[0].move
-
-  floodFillResults.forEach(function (object) {
-    if (object.floodLengthLimited > largestValueLimited) {
-      largestValueLimited = object.floodLengthLimited
-      largestMoveLimited = object.move
-    }
-    if (object.floodLength > largestValue) {
-      largestValue = object.floodLength
-      largestMove = object.move
-    }
-  })
-
-  console.log('flag', flag)
-  console.log('flaglimited', flagLimited)
-  console.log('largestmove', largestMove)
-  console.log('largestmovelimited', largestMoveLimited)
-
-  // generate a move
-  if (cornerMove !== false) { // we are at a corner
-    generatedMove = cornerMove
-  } else {
-    if (req.body.you.health < 80) { // we are hungry
-      closestFood = foodSearch(req.body)
-      foodMove = pathToFood(closestFood, req.body, backupGrid, floodFillResults, flag, flagLimited, largestMove, largestMoveLimited)
-      if (foodMove !== false) {
-        generatedMove = foodMove
-      } else {
-        generatedMove = pathToTail(bodyParam, backupGrid, possibleMoves, floodFillResults)
-      }
-    } else { // find path to tail if not hungry
-      tailMove = pathToTail(bodyParam, backupGrid, possibleMoves, flag, flagLimited, largestMove, largestMoveLimited)
-      if (tailMove !== false && tailMove !== undefined) {
-        generatedMove = tailMove
-      }
-    }
-  }
-
-  // last minute check
-  if (generatedMove === false || generatedMove === undefined) {
-    console.log('in last min check')
-    if (!flagLimited && !flag) {
-      generatedMove = largestMoveLimited
-    } else if (flag && !flagLimited) {
-      generatedMove = largestMoveLimited
-    } else if (!flag && flagLimited) {
-      generatedMove = largestMove
-    } else {
-      generatedMove = largestMove
-    }
-  }
-
-  // Response data
-  var data = {
-    move: generatedMove,
-    taunt: taunts[Math.floor(Math.random()*taunts.length)]
-  }
-
-  return res.json(data)
-})
-
 // find and return the first move that leads to our tail
 function pathToTail(data, grid, possibleMoves, flag, flagLimited, largestMove, largestMoveLimited) {
   var bodyData = data.you.body.data
@@ -668,5 +490,275 @@ function checkForHeadCollisions(bodyParam, otherSnakeHeads, possibleMoves, gridD
     }
   })
 }
+
+// Handle POST request to '/move'
+router.post('/move', function (req, res) {
+  // define some global variables
+  var taunts = ['Hey there gorgeoussssss', 'Get Shift done!', 'Shiffannnnnyyyyyyy']
+  var generatedMove = undefined
+  var cornerMove = checkCorners(req.body)
+  var possibleMoves = ['up', 'down', 'left', 'right']
+  var bodyParam = req.body
+  var body = req.body.you.body.data
+  var snakes = req.body.snakes.data
+  var grid = new PF.Grid(req.body.width, req.body.height)
+  var backupGrid = grid.clone()
+  var noFakeHeadsGrid = grid.clone()
+  var closestFood = []
+  var foodMove = ''
+  var tailMove = ''
+  var gridData = []
+  var noFakeHeadsGridData = []
+  var largest = 0
+  var largestFloodFillMove
+  var seed
+  var result
+  var floodFillResults = []
+  var noFakeHeadsSeed
+  var noFakeHeadsResult
+  var noFakeHeadsFFResults = []
+  var possibleWallMoves = checkWalls(req.body)
+  var myID = req.body.you.id
+  var otherSnakeHeads = []
+  var updatedOtherSnakeHeads = []
+  var floodFillDepth = 5
+  var flagLimited = false
+  var flag = false
+  var allLimitedLengths = []
+  var allLengths = []
+
+  storeHeadsOfOtherSnakes(snakes, otherSnakeHeads, myID)
+  appendFakeHeadsToSnakes(otherSnakeHeads, updatedOtherSnakeHeads, bodyParam)
+  createEmptyFFGrid(bodyParam, gridData)
+  createNoFakeHeadsEmptyFFGrid(bodyParam, noFakeHeadsGridData)
+  setUnwalkableGridAreas(body, backupGrid, snakes, updatedOtherSnakeHeads)
+  setUnwalkableNoFakeHeadsGridAreas(body, noFakeHeadsGrid, snakes, otherSnakeHeads)
+  setWalkableGridAreas(backupGrid, body, snakes, myID)
+  setWalkableNoFakeHeadsGridAreas(noFakeHeadsGrid, body, snakes, myID)
+  initializeFFGrid(backupGrid, gridData)
+  initializeNoFakeHeadsFFGrid(noFakeHeadsGrid, noFakeHeadsGridData)
+  removeWallMoves(possibleMoves, possibleWallMoves)
+  removeSnakeCollisionMoves(possibleMoves, gridData, body)
+  checkForHeadCollisions(bodyParam, otherSnakeHeads, possibleMoves, noFakeHeadsGridData)
+
+  // define the getter for the FF grid with fake heads
+  var getter = function (x, y) {
+    return gridData[y][x]
+  }
+
+  // define the getter for the FF grid without fake heads
+  var noFakeHeadsGetter = function (x, y) {
+    return noFakeHeadsGridData[y][x]
+  }
+
+  // perform a flood fill with fake heads
+  possibleMoves.forEach(function (move) {
+    var testOnFlood = []
+
+    if (move === 'up' && body[0].y - 1 > -1) {
+      seed = [body[0].x, body[0].y - 1]
+      result = floodFill({
+        getter: getter,
+        seed: seed,
+        onFlood: function (x, y) {
+          testOnFlood.push(dist([x, y], [body[0].x, body[0].y]))
+        }
+      })
+      floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length })
+    } else if (move === 'down' && body[0].y + 1 < bodyParam.height) {
+      seed = [body[0].x, body[0].y + 1]
+      result = floodFill({
+        getter: getter,
+        seed: seed,
+        onFlood: function (x, y) {
+          testOnFlood.push(dist([x, y], [body[0].x, body[0].y]))
+        }
+      })
+      floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length })
+    } else if (move === 'left' && body[0].x - 1 > -1) {
+      seed = [body[0].x - 1, body[0].y]
+      result = floodFill({
+        getter: getter,
+        seed: seed,
+        onFlood: function (x, y) {
+          testOnFlood.push(dist([x, y], [body[0].x, body[0].y]))
+        }
+      })
+      floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length })
+    } else if (move === 'right' && body[0].x + 1 < bodyParam.width) {
+      seed = [body[0].x + 1, body[0].y]
+      result = floodFill({
+        getter: getter,
+        seed: seed,
+        onFlood: function (x, y) {
+          testOnFlood.push(dist([x, y], [body[0].x, body[0].y]))
+        }
+      })
+      floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length })
+    }
+  })
+
+  // perform a flood fill without fake heads
+  possibleMoves.forEach(function (move) {
+    var testOnFloodNoFakeHeads = []
+
+    if (move === 'up' && body[0].y - 1 > -1) {
+      noFakeHeadsSeed = [body[0].x, body[0].y - 1]
+      noFakeHeadsResult = floodFill({
+        getter: noFakeHeadsGetter,
+        seed: noFakeHeadsSeed,
+        onFlood: function (x, y) {
+          testOnFloodNoFakeHeads.push(dist([x, y], [body[0].x, body[0].y]))
+        }
+      })
+      noFakeHeadsFFResults.push({ move, floodLengthLimited: testOnFloodNoFakeHeads.filter(distance => distance < floodFillDepth).length, floodLength: noFakeHeadsResult.flooded.length })
+    } else if (move === 'down' && body[0].y + 1 < bodyParam.height) {
+      noFakeHeadsSeed = [body[0].x, body[0].y + 1]
+      noFakeHeadsResult = floodFill({
+        getter: noFakeHeadsGetter,
+        seed: noFakeHeadsSeed,
+        onFlood: function (x, y) {
+          testOnFloodNoFakeHeads.push(dist([x, y], [body[0].x, body[0].y]))
+        }
+      })
+      noFakeHeadsFFResults.push({ move, floodLengthLimited: testOnFloodNoFakeHeads.filter(distance => distance < floodFillDepth).length, floodLength: noFakeHeadsResult.flooded.length })
+    } else if (move === 'left' && body[0].x - 1 > -1) {
+      noFakeHeadsSeed = [body[0].x - 1, body[0].y]
+      noFakeHeadsResult = floodFill({
+        getter: noFakeHeadsGetter,
+        seed: noFakeHeadsSeed,
+        onFlood: function (x, y) {
+          testOnFloodNoFakeHeads.push(dist([x, y], [body[0].x, body[0].y]))
+        }
+      })
+      noFakeHeadsFFResults.push({ move, floodLengthLimited: testOnFloodNoFakeHeads.filter(distance => distance < floodFillDepth).length, floodLength: noFakeHeadsResult.flooded.length })
+    } else if (move === 'right' && body[0].x + 1 < bodyParam.width) {
+      noFakeHeadsSeed = [body[0].x + 1, body[0].y]
+      noFakeHeadsResult = floodFill({
+        getter: noFakeHeadsGetter,
+        seed: noFakeHeadsSeed,
+        onFlood: function (x, y) {
+          testOnFloodNoFakeHeads.push(dist([x, y], [body[0].x, body[0].y]))
+        }
+      })
+      noFakeHeadsFFResults.push({ move, floodLengthLimited: testOnFloodNoFakeHeads.filter(distance => distance < floodFillDepth).length, floodLength: noFakeHeadsResult.flooded.length })
+    }
+  })
+
+  console.log('flood fill results')
+  console.log(floodFillResults)
+
+  console.log('FF without fake heads results')
+  console.log(noFakeHeadsFFResults)
+
+  storeFFLengths(floodFillResults, allLengths, allLimitedLengths)
+  
+  // check if all the normal FF lengths and all the limited FF lengths are equal or if there is a preferred direction
+  for (var i = 0; i < allLengths.length - 1; i++) {
+    if (allLengths[i] !== allLengths[i + 1]) {
+      flag = true
+    }
+  }
+  for (var j = 0; j < allLimitedLengths.length - 1; j++) {
+    if (allLimitedLengths[j] !== allLimitedLengths[j + 1]) {
+      flagLimited = true
+    }
+  }
+  
+  // get the move with the largest flood fill value
+  var largestValueLimited = floodFillResults[0].floodLengthLimited
+  var largestValue = floodFillResults[0].floodLength
+  var largestValueNoFakeHeads = noFakeHeadsFFResults[0].floodLength
+  var largestValueLimitedNoFakeHeads = noFakeHeadsFFResults[0].floodLengthLimited
+  var largestMove = floodFillResults[0].move
+  var largestMoveLimited = floodFillResults[0].move
+  var largestMoveNoFakeHeads = noFakeHeadsFFResults[0].move
+  var largestMoveLimitedNoFakeHeads = noFakeHeadsFFResults[0].move
+
+  floodFillResults.forEach(function (object) {
+    if (object.floodLengthLimited > largestValueLimited) {
+      largestValueLimited = object.floodLengthLimited
+      largestMoveLimited = object.move
+    }
+    if (object.floodLength > largestValue) {
+      largestValue = object.floodLength
+      largestMove = object.move
+    }
+  })
+
+  noFakeHeadsFFResults.forEach(function (object) {
+    if (object.floodLengthLimited > largestValueLimitedNoFakeHeads) {
+      largestValueLimitedNoFakeHeads = object.floodLengthLimited
+      largestMoveLimitedNoFakeHeads = object.move
+    }
+    if (object.floodLength > largestValueNoFakeHeads) {
+      largestValueNoFakeHeads = object.floodLength
+      largestMoveNoFakeHeads = object.move
+    }
+  })
+
+  console.log('flag', flag)
+  console.log('flaglimited', flagLimited)
+  console.log('largestmove', largestMove)
+  console.log('largestmovelimited', largestMoveLimited)
+  console.log('largestmovenofakeheads', largestMoveNoFakeHeads)
+
+  // generate a move
+  if (cornerMove !== false) { // we are at a corner
+    generatedMove = cornerMove
+  } else {
+    if (req.body.you.health < 80) { // we are hungry
+      closestFood = foodSearch(req.body)
+      foodMove = pathToFood(closestFood, req.body, backupGrid, floodFillResults, flag, flagLimited, largestMove, largestMoveLimited)
+      if (foodMove !== false) {
+        generatedMove = foodMove
+      } else {
+        generatedMove = pathToTail(bodyParam, backupGrid, possibleMoves, floodFillResults)
+      }
+    } else { // find path to tail if not hungry
+      tailMove = pathToTail(bodyParam, backupGrid, possibleMoves, flag, flagLimited, largestMove, largestMoveLimited)
+      if (tailMove !== false && tailMove !== undefined) {
+        generatedMove = tailMove
+      }
+    }
+  }
+
+  // last minute check
+  if (generatedMove === false || generatedMove === undefined) {
+    console.log('in last min check')
+    if (!flagLimited && !flag) {
+      generatedMove = largestMoveLimited
+    } else if (flag && !flagLimited) {
+      generatedMove = largestMoveLimited
+    } else if (!flag && flagLimited) {
+      generatedMove = largestMove
+    } else if (largestMove === largestMoveLimited) {
+      generatedMove = largestMove
+    } else {
+      console.log('last minute test case')
+      console.log(bodyParam)
+      var bestValue
+      noFakeHeadsFFResults.forEach(function (object) {
+        if (object.move === largestMoveLimitedNoFakeHeads) {
+          bestValue = object.floodLength
+        }
+      })
+      console.log('bestvalue: ', bestValue)
+      if (bestValue >= bodyParam.you.length) {
+        generatedMove = largestMoveLimitedNoFakeHeads
+      } else {
+        generatedMove = largestMoveNoFakeHeads
+      }
+    }
+  }
+
+  // Response data
+  var data = {
+    move: generatedMove,
+    taunt: taunts[Math.floor(Math.random()*taunts.length)]
+  }
+
+  return res.json(data)
+})
 
 module.exports = router

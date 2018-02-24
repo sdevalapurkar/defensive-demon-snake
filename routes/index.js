@@ -26,6 +26,8 @@ function pathToTail(data, grid, possibleMoves, flag, flagLimited, largestMove, l
   var gridBackup = grid.clone()
   var path = finder.findPath(bodyData[0].x, bodyData[0].y, bodyData[bodyData.length - 1].x, bodyData[bodyData.length - 1].y, gridBackup)
 
+  console.log(path);
+
   if (path.length === 0) {
     return false
   }
@@ -61,6 +63,7 @@ function pathToFood(closestFood, data, grid, floodFillResults, flag, flagLimited
     checkPossibleMoves.push(object.move)
   })
 
+  console.log(gridBackup.nodes)
   console.log(largestValue, largestValueLimited)
   console.log('flag, flagLimited, largestMove, largestMoveLimited', flag, flagLimited, largestMove, largestMoveLimited)
   console.log('path to food', path)
@@ -77,6 +80,8 @@ function pathToFood(closestFood, data, grid, floodFillResults, flag, flagLimited
         return 'up'
       } else if (!flagLimited && flag && largestMove === 'up') {
         return 'up'
+      } else if (data.you.health < 50) {
+        return 'up'
       }
     } else if (path[1][1] === (bodyData[0].y + 1) && checkPossibleMoves.includes('down')) { // go down
       if (!flag && !flagLimited) {
@@ -84,6 +89,8 @@ function pathToFood(closestFood, data, grid, floodFillResults, flag, flagLimited
       } else if (!flag && flagLimited && largestMoveLimited === 'down') {
         return 'down'
       } else if (!flagLimited && flag && largestMove === 'down') {
+        return 'down'
+      } else if (data.you.health < 50) {
         return 'down'
       }
     }
@@ -95,6 +102,8 @@ function pathToFood(closestFood, data, grid, floodFillResults, flag, flagLimited
         return 'left'
       } else if (!flagLimited && flag && largestMove === 'left') {
         return 'left'
+      } else if (data.you.health < 50) {
+        return 'left'
       }
     } else if (path[1][0] === bodyData[0].x + 1 && checkPossibleMoves.includes('right')) { // go right
       if (!flag && !flagLimited) {
@@ -102,6 +111,8 @@ function pathToFood(closestFood, data, grid, floodFillResults, flag, flagLimited
       } else if (!flag && flagLimited && largestMoveLimited === 'right') {
         return 'right'
       } else if (!flagLimited && flag && largestMove === 'right') {
+        return 'right'
+      } else if (data.you.health < 50) {
         return 'right'
       }
     }
@@ -554,6 +565,8 @@ router.post('/move', function (req, res) {
     return noFakeHeadsGridData[y][x]
   }
 
+  console.log(possibleMoves);
+
   // perform a flood fill with fake heads
   possibleMoves.forEach(function (move) {
     var testOnFlood = []
@@ -564,10 +577,7 @@ router.post('/move', function (req, res) {
         getter: getter,
         seed: seed,
         onFlood: function (x, y) {
-          var finder = new PF.AStarFinder()
-          var gridBackup = backupGrid.clone()
-          var path = finder.findPath(x, y, body[0].x, body[0].y - 1, gridBackup)
-          testOnFlood.push(path.length)
+          testOnFlood.push(dist([x, y], [body[0].x, body[0].y - 1]))
         }
       })
       floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length })
@@ -577,10 +587,7 @@ router.post('/move', function (req, res) {
         getter: getter,
         seed: seed,
         onFlood: function (x, y) {
-          var finder = new PF.AStarFinder()
-          var gridBackup = backupGrid.clone()
-          var path = finder.findPath(x, y, body[0].x, body[0].y + 1, gridBackup)
-          testOnFlood.push(path.length)
+          testOnFlood.push(dist([x, y], [body[0].x, body[0].y + 1]))
         }
       })
       floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length })
@@ -590,10 +597,7 @@ router.post('/move', function (req, res) {
         getter: getter,
         seed: seed,
         onFlood: function (x, y) {
-          var finder = new PF.AStarFinder()
-          var gridBackup = backupGrid.clone()
-          var path = finder.findPath(x, y, body[0].x - 1, body[0].y, gridBackup)
-          testOnFlood.push(path.length)
+          testOnFlood.push(dist([x, y], [body[0].x - 1, body[0].y]))
         }
       })
       floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length })
@@ -603,10 +607,7 @@ router.post('/move', function (req, res) {
         getter: getter,
         seed: seed,
         onFlood: function (x, y) {
-          var finder = new PF.AStarFinder()
-          var gridBackup = backupGrid.clone()
-          var path = finder.findPath(x, y, body[0].x + 1, body[0].y, gridBackup)
-          testOnFlood.push(path.length)
+          testOnFlood.push(dist([x, y], [body[0].x + 1, body[0].y]))
         }
       })
       floodFillResults.push({ move, floodLengthLimited: testOnFlood.filter(distance => distance < floodFillDepth).length, floodLength: result.flooded.length })
@@ -722,9 +723,9 @@ router.post('/move', function (req, res) {
   if (cornerMove !== false) { // we are at a corner
     generatedMove = cornerMove
   } else {
-    if (req.body.you.health < 80) { // we are hungry
+    if (req.body.you.health < 90) { // we are hungry
       closestFood = foodSearch(req.body)
-      foodMove = pathToFood(closestFood, req.body, backupGrid, floodFillResults, flag, flagLimited, largestMove, largestMoveLimited, largestValue, largestValueLimited)
+      foodMove = pathToFood(closestFood, req.body, backupGrid.clone(), floodFillResults, flag, flagLimited, largestMove, largestMoveLimited, largestValue, largestValueLimited)
       if (foodMove !== false) {
         generatedMove = foodMove
       } else {

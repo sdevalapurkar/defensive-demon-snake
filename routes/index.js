@@ -54,30 +54,33 @@ function generateMove(req) {
 
     var floodFillGrid = createEmptyFFGrid(req.body, []);
     floodFillGrid = initializeFFGrid(markedGrid.clone(), floodFillGrid);
-    possibleMoves = removeSnakeCollisionMoves(possibleMoves, floodFillGrid, req.body.you.body.data);
+
     possibleMoves = checkWalls(req.body, possibleMoves);
+    possibleMoves = removeSnakeCollisionMoves(possibleMoves, floodFillGrid, req.body.you.body.data);
+    if (req.body.you.health > 15) {
+        possibleMoves = removeDangerousWalls(possibleMoves, req.body.you.body.data, req.body);
+    }
 
     var floodFillResults = [];
     var seed, result;
     var getter = function (x, y) { return floodFillGrid[y][x]; };
     floodFillResults = performFloodFill(possibleMoves, req.body.you.body.data, seed, result, getter, floodFillResults, req.body);
 
-    var fullFloodLengths = storeFullFloodLengths(floodFillResults);
-    var limitedFloodLengths = storeLimitedFloodLengths(floodFillResults);
     var bestFloodFillMove = getBestFloodFillMove(floodFillResults, floodFillResults[0].floodLengthLimited, floodFillResults[0].floodLength);
-
     var closestFood = foodSearch(req.body);
-    var foodMove = pathToFood(closestFood, req.body, markedGrid.clone(), floodFillResults);
-    var tailMove = pathToTail(req.body, markedGrid.clone(), possibleMoves);
-
+    var foodMove = pathToFood(closestFood, req.body, markedGrid.clone(), floodFillResults, bestFloodFillMove);
+    var tailMove = pathToTail(req.body, markedGrid.clone(), possibleMoves, bestFloodFillMove);
+    
     if (cornerMove !== false) {
         generatedMove = cornerMove;
-    } else if (closestFood[0] < 5 && foodMove !== false) {
+    } else if (req.body.you.health < 25 && pathToFood(closestFood, req.body, markedGrid.clone(), floodFillResults, []) !== false && pathToFood(closestFood, req.body, markedGrid.clone(), floodFillResults, []) !== undefined) {
+        generatedMove = pathToFood(closestFood, req.body, markedGrid.clone(), floodFillResults, []);
+    } else if (closestFood[0] < 5 && foodMove !== false && foodMove !== undefined) {
         generatedMove = foodMove;
-    } else if (req.body.you.health < 30 && foodMove !== false) {
-        generatedMove = foodMove;
-    } else if (tailMove !== false) {
+    } else if (tailMove !== false && tailMove !== undefined) {
         generatedMove = tailMove;
+    } else {
+        generatedMove = lastMinuteMoveChoice(bestFloodFillMove);
     }
 
     return generatedMove;
@@ -256,6 +259,31 @@ function removeSnakeCollisionMoves(possibleMoves, gridData, body) {
     return possibleMoves;
 }
 
+// update possible moves based on if going near a wall is dangerous
+function removeDangerousWalls(possibleMoves, body, board) {
+    if (possibleMoves.includes('left') && body[0].x - 1 === 0) {
+        if (possibleMoves.length !== 1) {
+            removeElement(possibleMoves, 'left');
+        }
+    }
+    if (possibleMoves.includes('right') && body[0].x + 1 === board.width - 1) {
+        if (possibleMoves.length !== 1) {
+            removeElement(possibleMoves, 'right');
+        }
+    }
+    if (possibleMoves.includes('up') && body[0].y - 1 === 0) {
+        if (possibleMoves.length !== 1) {
+            removeElement(possibleMoves, 'up');
+        }
+    }
+    if (possibleMoves.includes('down') && body[0].y + 1 === board.height - 1) {
+        if (possibleMoves.length !== 1) {
+            removeElement(possibleMoves, 'down');
+        }
+    }
+    return possibleMoves;
+}
+
 
 // check if we are at a wall
 function checkWalls(data, possibleMoves) {
@@ -372,25 +400,7 @@ function performFloodFill(possibleMoves, body, seed, result, getter, floodFillRe
 }
 
 
-// store all the complete flood fill result values
-function storeFullFloodLengths(floodFillResults) {
-    var array = [];
-    floodFillResults.forEach(function (object) {
-        array.push(object.floodLength);
-    });
-    return array;
-}
-
-
-// store all the limited flood fill result values
-function storeLimitedFloodLengths(floodFillResults) {
-    var array = [];
-    floodFillResults.forEach(function (object) {
-        array.push(object.floodLengthLimited);
-    });
-    return array;
-}
-
+// get the move and length of the best direction for limited and full flood fill result
 function getBestFloodFillMove(floodFillResults, largestLimited, largestFull) {
     var bestFloodFillMove = {};
     floodFillResults.forEach(function (object) {
@@ -438,7 +448,7 @@ function foodSearch(data) {
 
 
 // find a move that gets you closest to the nearest piece of food if a path exists to the food
-function pathToFood(closestFood, data, gridBackup, floodFillResults) {
+function pathToFood(closestFood, data, gridBackup, floodFillResults, bestFloodFillMove) {
     var bodyData = data.you.body.data;
     var finder = new PF.AStarFinder();
     var path = finder.findPath(bodyData[0].x, bodyData[0].y, closestFood[1].x, closestFood[1].y, gridBackup);
@@ -446,21 +456,44 @@ function pathToFood(closestFood, data, gridBackup, floodFillResults) {
     floodFillResults.forEach(function (object) {
         checkPossibleMoves.push(object.move);
     });
-  
+    var flag = false;
+    if (bestFloodFillMove.length === 0) {
+        flag = true;
+    }
+
+    console.log(path);
+    console.log(checkPossibleMoves);
+
     if (path.length === 0) {
         return false;
     } else {
         if (path[1][0] === bodyData[0].x) {
-            if (path[1][1] === bodyData[0].y - 1 && checkPossibleMoves.includes('up')) {
-                return 'up';
-            } else if (path[1][1] === (bodyData[0].y + 1) && checkPossibleMoves.includes('down')) {
-                return 'down';
+            if (!flag) {
+                if (path[1][1] === bodyData[0].y - 1 && checkPossibleMoves.includes('up') && bestFloodFillMove.limitedMove === 'up') {
+                    return 'up';
+                } else if (path[1][1] === (bodyData[0].y + 1) && checkPossibleMoves.includes('down') && bestFloodFillMove.limitedMove === 'down') {
+                    return 'down';
+                }
+            } else {
+                if (path[1][1] === bodyData[0].y - 1 && checkPossibleMoves.includes('up')) {
+                    return 'up';
+                } else if (path[1][1] === (bodyData[0].y + 1) && checkPossibleMoves.includes('down')) {
+                    return 'down';
+                }
             }
         } else if (path[1][1] === bodyData[0].y) {
-            if (path[1][0] === (bodyData[0].x - 1) && checkPossibleMoves.includes('left')) {
-                return 'left';
-            } else if (path[1][0] === bodyData[0].x + 1 && checkPossibleMoves.includes('right')) {
-                return 'right';
+            if (!flag) {
+                if (path[1][0] === (bodyData[0].x - 1) && checkPossibleMoves.includes('left') && bestFloodFillMove.limitedMove === 'left') {
+                    return 'left';
+                } else if (path[1][0] === bodyData[0].x + 1 && checkPossibleMoves.includes('right') && bestFloodFillMove.limitedMove === 'right') {
+                    return 'right';
+                }
+            } else {
+                if (path[1][0] === (bodyData[0].x - 1) && checkPossibleMoves.includes('left')) {
+                    return 'left';
+                } else if (path[1][0] === bodyData[0].x + 1 && checkPossibleMoves.includes('right')) {
+                    return 'right';
+                }
             }
         }
     }
@@ -468,7 +501,7 @@ function pathToFood(closestFood, data, gridBackup, floodFillResults) {
 
 
 // find and return the first move that leads to our tail
-function pathToTail(data, gridBackup, possibleMoves) {
+function pathToTail(data, gridBackup, possibleMoves, bestFloodFillMove) {
     var bodyData = data.you.body.data;
     var finder = new PF.AStarFinder();
     var path = finder.findPath(bodyData[0].x, bodyData[0].y, bodyData[bodyData.length - 1].x, bodyData[bodyData.length - 1].y, gridBackup);
@@ -478,21 +511,30 @@ function pathToTail(data, gridBackup, possibleMoves) {
     } else {
         if (path[1][0] === path[0][0]) {
             if (path[1][1] !== path[0][1]) {
-                if (path[1][1] < path[0][1] && possibleMoves.includes('up')) {
+                if (path[1][1] < path[0][1] && possibleMoves.includes('up') && bestFloodFillMove.limitedMove === 'up') {
                     return 'up';
-                } else if (path[1][1] > path[0][1] && possibleMoves.includes('down')) {
+                } else if (path[1][1] > path[0][1] && possibleMoves.includes('down') && bestFloodFillMove.limitedMove === 'down') {
                     return 'down';
                 }
             }
         } else if (path[1][1] === path[0][1]) {
             if (path[1][0] !== path[0][0]) {
-                if (path[1][0] > path[0][0] && possibleMoves.includes('right')) {
+                if (path[1][0] > path[0][0] && possibleMoves.includes('right') && bestFloodFillMove.limitedMove === 'right') {
                     return 'right';
-                } else if (path[1][0] < path[0][0] && possibleMoves.includes('left')) {
+                } else if (path[1][0] < path[0][0] && possibleMoves.includes('left') && bestFloodFillMove.limitedMove === 'left') {
                     return 'left';
                 }
             }
         }
+    }
+}
+
+// make a choice about the best move based on the flood fill
+function lastMinuteMoveChoice(bestFloodFillMove) {
+    if (bestFloodFillMove.fullMove === bestFloodFillMove.limitedMove) {
+        return bestFloodFillMove.fullMove;
+    } else {
+        return bestFloodFillMove.limitedMove;
     }
 }
 

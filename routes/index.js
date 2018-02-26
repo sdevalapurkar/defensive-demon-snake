@@ -52,11 +52,20 @@ function generateMove(req) {
     var markedGrid = setUnwalkableGridAreas(req.body.you.body.data, grid.clone(), req.body.snakes.data, updatedOtherSnakeHeads);    
     markedGrid = setWalkableGridAreas(markedGrid.clone(), req.body.you.body.data, req.body.snakes.data, req.body.you.id);
 
+    var noFakeHeadsMarkedGrid = setUnwalkableGridAreas(req.body.you.body.data, grid.clone(), req.body.snakes.data, otherSnakeHeads);
+    noFakeHeadsMarkedGrid = setWalkableGridAreas(noFakeHeadsMarkedGrid.clone(), req.body.you.body.data, req.body.snakes.data, req.body.you.id);
+
     var floodFillGrid = createEmptyFFGrid(req.body, []);
     floodFillGrid = initializeFFGrid(markedGrid.clone(), floodFillGrid);
 
+    var noFakeHeadsFloodFillGrid = createEmptyFFGrid(req.body, []);
+    noFakeHeadsFloodFillGrid = initializeFFGrid(noFakeHeadsMarkedGrid.clone(), noFakeHeadsFloodFillGrid);
+
     possibleMoves = checkWalls(req.body, possibleMoves);
     possibleMoves = removeSnakeCollisionMoves(possibleMoves, floodFillGrid, req.body.you.body.data);
+    console.log(possibleMoves);
+    possibleMoves = checkForHeadCollisions(req.body, otherSnakeHeads, possibleMoves, noFakeHeadsFloodFillGrid);
+    console.log(possibleMoves);
     if (req.body.you.health > 15) {
         possibleMoves = removeDangerousWalls(possibleMoves, req.body.you.body.data, req.body);
     }
@@ -70,7 +79,7 @@ function generateMove(req) {
     var closestFood = foodSearch(req.body);
     var foodMove = pathToFood(closestFood, req.body, markedGrid.clone(), floodFillResults, bestFloodFillMove);
     var tailMove = pathToTail(req.body, markedGrid.clone(), possibleMoves, bestFloodFillMove);
-    
+
     if (cornerMove !== false) {
         generatedMove = cornerMove;
     } else if (req.body.you.health < 55 && pathToFood(closestFood, req.body, markedGrid.clone(), floodFillResults, []) !== false && pathToFood(closestFood, req.body, markedGrid.clone(), floodFillResults, []) !== undefined) {
@@ -293,6 +302,75 @@ function removeDangerousWalls(possibleMoves, body, board) {
 }
 
 
+// be aggressive when there is a chance for head on head collision with a shorter snake
+function checkForHeadCollisions(bodyParam, otherSnakeHeads, possibleMoves, gridData) {
+    otherSnakeHeads.forEach(function (object) {
+        if (bodyParam.you.length > object.length) {
+            // if snake head two spaces to right of my head
+            if (bodyParam.you.body.data[0].x + 2 !== undefined && object.x === bodyParam.you.body.data[0].x + 2 && object.y === bodyParam.you.body.data[0].y) {
+                if (gridData[object.y][bodyParam.you.body.data[0].x + 1] !== 0) {
+                    possibleMoves.push('right');
+                }
+            // if snake head two spaces to left of my head
+            } else if (bodyParam.you.body.data[0].x - 2 !== undefined && object.x === bodyParam.you.body.data[0].x - 2 && object.y === bodyParam.you.body.data[0].y) {
+                if (gridData[object.y][bodyParam.you.body.data[0].x - 1] !== 0) {
+                    possibleMoves.push('left');
+                }
+            // if snake head two spaces above my head
+            } else if (bodyParam.you.body.data[0].y - 2 !== undefined && object.y === bodyParam.you.body.data[0].y - 2 && object.x === bodyParam.you.body.data[0].x) {
+                if (gridData[bodyParam.you.body.data[0].y - 1][object.x] !== 0) {
+                    possibleMoves.push('up');
+                }
+            // if snake head two spaces below my head
+            } else if (bodyParam.you.body.data[0].y + 2 !== undefined && object.y === bodyParam.you.body.data[0].y + 2 && object.x === bodyParam.you.body.data[0].x) {
+                if (gridData[bodyParam.you.body.data[0].y + 1][object.x] !== 0) {
+                    possibleMoves.push('down');
+                }
+            // if snake head one down
+            } else if (bodyParam.you.body.data[0].y + 1 !== undefined && object.y === bodyParam.you.body.data[0].y + 1) {
+                // and one to right of my head
+                if (bodyParam.you.body.data[0].x + 1 !== undefined && object.x === bodyParam.you.body.data[0].x + 1) {
+                    if (gridData[bodyParam.you.body.data[0].y + 1][bodyParam.you.body.data[0].x] !== 0) {
+                        possibleMoves.push('down');
+                    }
+                    if (gridData[bodyParam.you.body.data[0].y][bodyParam.you.body.data[0].x + 1] !== 0) {
+                        possibleMoves.push('right');
+                    }
+                // and one to left of my head
+                } else if (bodyParam.you.body.data[0].x - 1 !== undefined && object.x === bodyParam.you.body.data[0].x - 1) {
+                    if (gridData[bodyParam.you.body.data[0].y + 1][bodyParam.you.body.data[0].x] !== 0) {
+                        possibleMoves.push('down');
+                    }
+                    if (gridData[bodyParam.you.body.data[0].y][bodyParam.you.body.data[0].x - 1] !== 0) {
+                        possibleMoves.push('left');
+                    }
+                }
+            // if snake head one above
+            } else if (bodyParam.you.body.data[0].y - 1 !== undefined && object.y === bodyParam.you.body.data[0].y - 1) {
+                // and one to right of my head
+                if (bodyParam.you.body.data[0].x + 1 !== undefined && object.x === bodyParam.you.body.data[0].x + 1) {
+                    if (gridData[bodyParam.you.body.data[0].y - 1][bodyParam.you.body.data[0].x] !== 0) {
+                        possibleMoves.push('up');
+                    }
+                    if (gridData[bodyParam.you.body.data[0].y][bodyParam.you.body.data[0].x + 1] !== 0) {
+                        possibleMoves.push('right');
+                    }
+                // and one to left of my head
+                } else if (bodyParam.you.body.data[0].x - 1 !== undefined && object.x === bodyParam.you.body.data[0].x - 1) {
+                    if (gridData[bodyParam.you.body.data[0].y - 1][bodyParam.you.body.data[0].x] !== 0) {
+                        possibleMoves.push('up');
+                    }
+                    if (gridData[bodyParam.you.body.data[0].y][bodyParam.you.body.data[0].x - 1] !== 0) {
+                        possibleMoves.push('left');
+                    }
+                }
+            }
+        }
+    });
+    return possibleMoves;
+}
+
+
 // check if we are at a wall
 function checkWalls(data, possibleMoves) {
     var bodyData = data.you.body.data;
@@ -474,7 +552,9 @@ function pathToFood(closestFood, data, gridBackup, floodFillResults, bestFloodFi
     var path = finder.findPath(bodyData[0].x, bodyData[0].y, closestFood[1].x, closestFood[1].y, gridBackup);
     var checkPossibleMoves = [];
     floodFillResults.forEach(function (object) {
-        checkPossibleMoves.push(object.move);
+        if (object.floodLength > data.you.length) {
+            checkPossibleMoves.push(object.move);
+        }
     });
     var flag = false;
     if (bestFloodFillMove.length === 0) {
@@ -486,9 +566,9 @@ function pathToFood(closestFood, data, gridBackup, floodFillResults, bestFloodFi
     } else {
         if (path[1][0] === bodyData[0].x) {
             if (!flag) {
-                if (path[1][1] === bodyData[0].y - 1 && checkPossibleMoves.includes('up') && bestFloodFillMove.limitedMove === 'up') {
+                if (path[1][1] === bodyData[0].y - 1 && checkPossibleMoves.includes('up')) {
                     return 'up';
-                } else if (path[1][1] === (bodyData[0].y + 1) && checkPossibleMoves.includes('down') && bestFloodFillMove.limitedMove === 'down') {
+                } else if (path[1][1] === (bodyData[0].y + 1) && checkPossibleMoves.includes('down')) {
                     return 'down';
                 }
             } else {
@@ -500,9 +580,9 @@ function pathToFood(closestFood, data, gridBackup, floodFillResults, bestFloodFi
             }
         } else if (path[1][1] === bodyData[0].y) {
             if (!flag) {
-                if (path[1][0] === (bodyData[0].x - 1) && checkPossibleMoves.includes('left') && bestFloodFillMove.limitedMove === 'left') {
+                if (path[1][0] === (bodyData[0].x - 1) && checkPossibleMoves.includes('left')) {
                     return 'left';
-                } else if (path[1][0] === bodyData[0].x + 1 && checkPossibleMoves.includes('right') && bestFloodFillMove.limitedMove === 'right') {
+                } else if (path[1][0] === bodyData[0].x + 1 && checkPossibleMoves.includes('right')) {
                     return 'right';
                 }
             } else {
@@ -551,7 +631,7 @@ function lastMinuteMoveChoice(bestFloodFillMove) {
     if (bestFloodFillMove.fullMove === bestFloodFillMove.limitedMove) {
         return bestFloodFillMove.fullMove;
     } else {
-        if (bestFloodFillMove.limitedLength > 10) {
+        if (bestFloodFillMove.limitedLength > 7) {
             return bestFloodFillMove.limitedMove;
         } else {
             return bestFloodFillMove.fullMove;

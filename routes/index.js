@@ -49,7 +49,7 @@ function generateMove(req) {
     otherSnakeHeads = storeHeadsOfOtherSnakes(req.body.snakes.data, otherSnakeHeads, req.body.you.id);
     updatedOtherSnakeHeads = appendFakeHeadsToSnakes(otherSnakeHeads, updatedOtherSnakeHeads, req.body);
 
-    var markedGrid = setUnwalkableGridAreas(req.body.you.body.data, grid.clone(), req.body.snakes.data, updatedOtherSnakeHeads);
+    var markedGrid = setUnwalkableGridAreas(req.body.you.body.data, grid.clone(), req.body.snakes.data, updatedOtherSnakeHeads);    
     markedGrid = setWalkableGridAreas(markedGrid.clone(), req.body.you.body.data, req.body.snakes.data, req.body.you.id);
 
     var floodFillGrid = createEmptyFFGrid(req.body, []);
@@ -73,13 +73,17 @@ function generateMove(req) {
     
     if (cornerMove !== false) {
         generatedMove = cornerMove;
-    } else if (req.body.you.health < 25 && pathToFood(closestFood, req.body, markedGrid.clone(), floodFillResults, []) !== false && pathToFood(closestFood, req.body, markedGrid.clone(), floodFillResults, []) !== undefined) {
+    } else if (req.body.you.health < 55 && pathToFood(closestFood, req.body, markedGrid.clone(), floodFillResults, []) !== false && pathToFood(closestFood, req.body, markedGrid.clone(), floodFillResults, []) !== undefined) {
+        console.log('really hungry');
         generatedMove = pathToFood(closestFood, req.body, markedGrid.clone(), floodFillResults, []);
     } else if (closestFood[0] < 5 && foodMove !== false && foodMove !== undefined) {
+        console.log('close to food');
         generatedMove = foodMove;
     } else if (tailMove !== false && tailMove !== undefined) {
+        console.log('tail path');
         generatedMove = tailMove;
     } else {
+        console.log('last min');
         generatedMove = lastMinuteMoveChoice(bestFloodFillMove);
     }
 
@@ -195,14 +199,18 @@ function setUnwalkableGridAreas(body, backupGrid, snakes, updatedOtherSnakeHeads
 function setWalkableGridAreas(backupGrid, body, snakes, myID) {
     // set all locations where my body or other snakes' bodies will disappear as walkable
     snakes.forEach(function (snake) {
+        var snakeHeadX = snake.body.data[snake.body.data.length - 1].x;
+        var snakeHeadY = snake.body.data[snake.body.data.length - 1].y;
         if (snake.id !== myID && snake.health !== 100) {
             snake.body.data.reverse().forEach(function (object, index) {
                 if (dist([body[0].x, body[0].y], [object.x, object.y]) > index) {
-                    backupGrid.setWalkableAt(object.x, object.y, true);
+                    if (dist([body[0].x, body[0].y], [object.x, object.y]) < dist([snakeHeadX, snakeHeadY], [object.x, object.y])) {
+                        backupGrid.setWalkableAt(object.x, object.y, true);
+                    }
                 }
             });
         } else {
-            if (snake.health < 100) {
+            if (snake.health < 100 && snake.length > 4) {
                 snake.body.data.reverse().forEach(function (object, index) {
                     if (dist([body[0].x, body[0].y], [object.x, object.y]) > index) {
                         backupGrid.setWalkableAt(object.x, object.y, true);
@@ -262,22 +270,22 @@ function removeSnakeCollisionMoves(possibleMoves, gridData, body) {
 // update possible moves based on if going near a wall is dangerous
 function removeDangerousWalls(possibleMoves, body, board) {
     if (possibleMoves.includes('left') && body[0].x - 1 === 0) {
-        if (possibleMoves.length !== 1) {
+        if (possibleMoves.length > 2) {
             removeElement(possibleMoves, 'left');
         }
     }
     if (possibleMoves.includes('right') && body[0].x + 1 === board.width - 1) {
-        if (possibleMoves.length !== 1) {
+        if (possibleMoves.length > 2) {
             removeElement(possibleMoves, 'right');
         }
     }
     if (possibleMoves.includes('up') && body[0].y - 1 === 0) {
-        if (possibleMoves.length !== 1) {
+        if (possibleMoves.length > 2) {
             removeElement(possibleMoves, 'up');
         }
     }
     if (possibleMoves.includes('down') && body[0].y + 1 === board.height - 1) {
-        if (possibleMoves.length !== 1) {
+        if (possibleMoves.length > 2) {
             removeElement(possibleMoves, 'down');
         }
     }
@@ -403,16 +411,28 @@ function performFloodFill(possibleMoves, body, seed, result, getter, floodFillRe
 // get the move and length of the best direction for limited and full flood fill result
 function getBestFloodFillMove(floodFillResults, largestLimited, largestFull) {
     var bestFloodFillMove = {};
+    bestFloodFillMove.fullLength = floodFillResults[0].floodLength;
+    bestFloodFillMove.fullMove = floodFillResults[0].move;
+    bestFloodFillMove.limitedLength = floodFillResults[0].floodLengthLimited;
+    bestFloodFillMove.limitedMove = floodFillResults[0].move;
     floodFillResults.forEach(function (object) {
-        if (object.floodLength >= largestFull) {
+        if (object.floodLength > largestFull) {
             largestFull = object.floodLength;
             bestFloodFillMove.fullLength = object.floodLength;
             bestFloodFillMove.fullMove = object.move;
+            if (object.floodLengthLimited === largestLimited) {
+                bestFloodFillMove.limitedLength = object.floodLengthLimited;
+                bestFloodFillMove.limitedMove = object.move;
+            }
         }
-        if (object.floodLengthLimited >= largestLimited) {
+        if (object.floodLengthLimited > largestLimited) {
             largestLimited = object.floodLengthLimited;
             bestFloodFillMove.limitedLength = object.floodLengthLimited;
             bestFloodFillMove.limitedMove = object.move;
+            if (object.floodLength === largestFull) {
+                bestFloodFillMove.fullLength = object.floodLength;
+                bestFloodFillMove.fullMove = object.move;
+            }
         }
     });
     return bestFloodFillMove;
@@ -461,9 +481,6 @@ function pathToFood(closestFood, data, gridBackup, floodFillResults, bestFloodFi
         flag = true;
     }
 
-    console.log(path);
-    console.log(checkPossibleMoves);
-
     if (path.length === 0) {
         return false;
     } else {
@@ -505,7 +522,7 @@ function pathToTail(data, gridBackup, possibleMoves, bestFloodFillMove) {
     var bodyData = data.you.body.data;
     var finder = new PF.AStarFinder();
     var path = finder.findPath(bodyData[0].x, bodyData[0].y, bodyData[bodyData.length - 1].x, bodyData[bodyData.length - 1].y, gridBackup);
-  
+
     if (path.length === 0 || path.length === 1) {
         return false;
     } else {
@@ -534,7 +551,11 @@ function lastMinuteMoveChoice(bestFloodFillMove) {
     if (bestFloodFillMove.fullMove === bestFloodFillMove.limitedMove) {
         return bestFloodFillMove.fullMove;
     } else {
-        return bestFloodFillMove.limitedMove;
+        if (bestFloodFillMove.limitedLength > 10) {
+            return bestFloodFillMove.limitedMove;
+        } else {
+            return bestFloodFillMove.fullMove;
+        }
     }
 }
 

@@ -54,7 +54,7 @@ function generateMove(req) {
     
 
     // create the grid and mark walkable/unwalkable areas (with and without fake heads)
-    var markedGrid = setUnwalkableGridAreas(req.body.you.body.data, grid.clone(), req.body.snakes.data, updatedOtherSnakeHeads);    
+    var markedGrid = setUnwalkableGridAreas(req.body.you.body.data, grid.clone(), req.body.snakes.data, updatedOtherSnakeHeads);
     markedGrid = setWalkableGridAreas(markedGrid.clone(), req.body.you.body.data, req.body.snakes.data, req.body.you.id);
     var noFakeHeadsMarkedGrid = setUnwalkableGridAreas(req.body.you.body.data, grid.clone(), req.body.snakes.data, otherSnakeHeads);
     noFakeHeadsMarkedGrid = setWalkableGridAreas(noFakeHeadsMarkedGrid.clone(), req.body.you.body.data, req.body.snakes.data, req.body.you.id);
@@ -214,12 +214,18 @@ function setUnwalkableGridAreas(body, backupGrid, snakes, updatedOtherSnakeHeads
 
 // mark all the walkable parts of the grid
 function setWalkableGridAreas(backupGrid, body, snakes, myID) {
+    var reversedSnakes = [];
+    var meReversed = [];
     // set all locations where my body or other snakes' bodies will disappear as walkable
     snakes.forEach(function (snake) {
-        var snakeHeadX = snake.body.data[snake.body.data.length - 1].x;
-        var snakeHeadY = snake.body.data[snake.body.data.length - 1].y;
         if (snake.id !== myID && snake.health !== 100) {
-            snake.body.data.reverse().forEach(function (object, index) {
+            snake.body.data.forEach(function (object) {
+                reversedSnakes.push(object);
+            });
+            reversedSnakes = reversedSnakes.reverse();
+            var snakeHeadX = reversedSnakes[reversedSnakes.length - 1].x;
+            var snakeHeadY = reversedSnakes[reversedSnakes.length - 1].y;
+            reversedSnakes.forEach(function (object, index) {
                 if (dist([body[0].x, body[0].y], [object.x, object.y]) > index) {
                     if (dist([body[0].x, body[0].y], [object.x, object.y]) < dist([snakeHeadX, snakeHeadY], [object.x, object.y])) {
                         backupGrid.setWalkableAt(object.x, object.y, true);
@@ -228,7 +234,11 @@ function setWalkableGridAreas(backupGrid, body, snakes, myID) {
             });
         } else {
             if (snake.health < 100 && snake.length > 4) {
-                snake.body.data.reverse().forEach(function (object, index) {
+                snake.body.data.forEach(function (object) {
+                    meReversed.push(object);
+                });
+                meReversed = meReversed.reverse();
+                meReversed.forEach(function (object, index) {
                     if (dist([body[0].x, body[0].y], [object.x, object.y]) > index) {
                         backupGrid.setWalkableAt(object.x, object.y, true);
                     }

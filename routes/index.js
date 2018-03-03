@@ -52,6 +52,7 @@ function generateMove(req) {
     otherSnakeHeads = storeHeadsOfOtherSnakes(req.body.snakes.data, otherSnakeHeads, req.body.you.id);
     updatedOtherSnakeHeads = appendFakeHeadsToSnakes(otherSnakeHeads, updatedOtherSnakeHeads, req.body, true);
     
+    console.log(updatedOtherSnakeHeads);
 
     // create the grid and mark walkable/unwalkable areas (with and without fake heads)
     var markedGrid = setUnwalkableGridAreas(req.body.you.body.data, grid.clone(), req.body.snakes.data, updatedOtherSnakeHeads);
@@ -94,10 +95,13 @@ function generateMove(req) {
     if (cornerMove !== false) {
         generatedMove = cornerMove;
     } else if (req.body.you.health < 55 && foodMove !== false && foodMove !== undefined) {
+        console.log('hungry');
         generatedMove = pathToFood(closestFood, req.body, markedGrid.clone(), floodFillResults, []);
     } else if (tailMove !== false && tailMove !== undefined) {
+        console.log('tail');
         generatedMove = tailMove;
     } else {
+        console.log('last minute');
         generatedMove = lastMinuteMoveChoice(bestFloodFillMove);
     }
 

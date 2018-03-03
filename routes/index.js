@@ -8,7 +8,7 @@ var dist = require('manhattan');
 router.post('/start', function (req, res) {  
     // response data
     var data = {
-        color: '#00CC99',
+        color: '#A50B5E',
         name: 'Shiffany',
         secondary_color: '#CD5C5C',
         head_url: 'https://sdevalapurkar.github.io/personal-website/img/Shiffany.png',

@@ -709,6 +709,8 @@ function pathToFood(closestFood, data, gridBackup, floodFillResults, bestFloodFi
         return undefined;
     }
 
+    console.log('bodydata MANNNNNNN', bodyData);
+
     var path = finder.findPath(bodyData[0].x, bodyData[0].y, closestFood[1].x, closestFood[1].y, gridBackup);
     var checkPossibleMoves = [];
     floodFillResults.forEach(function (object) {

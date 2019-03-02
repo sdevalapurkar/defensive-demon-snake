@@ -85,7 +85,7 @@ function generateMove(req) {
     
     
     var closestFood = foodSearch(req.body);
-    console.log('sauce2');
+    console.log('sauce2', closestFood);
     var tailMove = pathToTail(req.body, markedGrid.clone(), possibleMoves);
     var foodMove = pathToFood(closestFood, req.body, markedGrid.clone(), floodFillResults, []);
     console.log(foodMove);
@@ -671,9 +671,12 @@ function getBestFloodFillMove(floodFillResults, largestLimited, largestFull) {
 
 // find the closest piece of food to our head
 function foodSearch(data) {
+    console.log('data', data);
     var foodData = data.board.food;
     var distancesToFood = [];
     var closestFood = [];
+
+    console.log('fooddata', foodData);
   
     foodData.forEach(function (object) {
         distancesToFood.push(object);
@@ -701,6 +704,11 @@ function foodSearch(data) {
 function pathToFood(closestFood, data, gridBackup, floodFillResults, bestFloodFillMove) {
     var bodyData = data.you.body;
     var finder = new PF.AStarFinder();
+
+    if (closestFood[0] === undefined) {
+        return undefined;
+    }
+
     var path = finder.findPath(bodyData[0].x, bodyData[0].y, closestFood[1].x, closestFood[1].y, gridBackup);
     var checkPossibleMoves = [];
     floodFillResults.forEach(function (object) {

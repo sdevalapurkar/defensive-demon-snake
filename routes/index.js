@@ -5,7 +5,7 @@ var floodFill = require('n-dimensional-flood-fill');
 var dist = require('manhattan');
 
 // handle POST request to '/start'
-router.post('/start', function (req, res) {  
+router.post('/start', (req, res) => {  
     // response data
     const data = {
         color: '#652DC1',
@@ -16,7 +16,7 @@ router.post('/start', function (req, res) {
 
 
 // handle POST request to '/move'
-router.post('/move', function (req, res) {
+router.post('/move', (req, res) => {
     // generate a move
     var generatedMove = generateMove(req);
 

@@ -725,7 +725,7 @@ function pathToFood(closestFood, data, gridBackup, floodFillResults, bestFloodFi
 
     if (path.length === 0) {
         return false;
-    } else if (dist([closestFood[1].x, closestFood[1].y], [bodyData[bodyData.length-1].x, bodyData[bodyData.length-1].y]) === 2 && dist([closestFood[1].x, closestFood[1].y], [bodyData[bodyData.length-2].x, bodyData[bodyData.length-2].y]) === 1) {
+    } else if (bodyData.length > 1 && dist([closestFood[1].x, closestFood[1].y], [bodyData[bodyData.length-1].x, bodyData[bodyData.length-1].y]) === 2 && dist([closestFood[1].x, closestFood[1].y], [bodyData[bodyData.length-2].x, bodyData[bodyData.length-2].y]) === 1) {
         return false;
     } else {
         if (path[1][0] === bodyData[0].x) {

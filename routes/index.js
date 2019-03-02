@@ -63,14 +63,12 @@ function generateMove(req) {
 
     // create the flood fill grids based on the marked grids (with and without fake heads)
     var floodFillGrid = createEmptyFFGrid(req.body, []);
-    console.log('hehehehehehe111111');
     floodFillGrid = initializeFFGrid(markedGrid.clone(), floodFillGrid);
     var noFakeHeadsFloodFillGrid = createEmptyFFGrid(req.body, []);
     noFakeHeadsFloodFillGrid = initializeFFGrid(noFakeHeadsMarkedGrid.clone(), noFakeHeadsFloodFillGrid);
 
     // update the possible moves based on our location
     possibleMoves = checkWalls(req.body, possibleMoves);
-    console.log('sauce');
     possibleMoves = removeSnakeCollisionMoves(possibleMoves, noFakeHeadsFloodFillGrid, req.body.you.body);
     possibleMoves = checkForHeadCollisions(req.body, otherSnakeHeads, possibleMoves, noFakeHeadsFloodFillGrid, req.body.board);
 
@@ -95,27 +93,19 @@ function generateMove(req) {
     
     
     var closestFood = foodSearch(req.body);
-    console.log('sauce2', closestFood);
     var tailMove = pathToTail(req.body, markedGrid.clone(), possibleMoves);
     var foodMove = pathToFood(closestFood, req.body, markedGrid.clone(), floodFillResults, []);
-    console.log(foodMove);
-
-    console.log('sauce2');
 
     // use the moves calculated to figure out what the generated move shall be
     if (dangerousFlag) {
-        console.log('might die, need dangerous move');
         generatedMove = lastMinuteMoveChoice(bestFloodFillMove);
     } else if (cornerMove !== false) {
         generatedMove = cornerMove;
     } else if (req.body.you.health < 55 && foodMove !== false && foodMove !== undefined) {
-        console.log('hungry');
         generatedMove = pathToFood(closestFood, req.body, markedGrid.clone(), floodFillResults, []);
     } else if (tailMove !== false && tailMove !== undefined) {
-        console.log('tail');
         generatedMove = tailMove;
     } else {
-        console.log('last minute');
         generatedMove = lastMinuteMoveChoice(bestFloodFillMove);
     }
 
@@ -406,8 +396,6 @@ function removeDangerousWalls(possibleMoves, body, board) {
 // look ahead for spaces where we can get stuck in head on head, and try to avoid those spaces
 function removePotentialHeadCollisions(possibleMoves, body, moreFakeHeads, grid, board) {
     var len = possibleMoves.length;
-    console.log(possibleMoves);
-    console.log(grid);
     possibleMoves.forEach(function (move) {
         if (move === 'left' && len >= 2) {
             if (body[0].x - 2 >= 0 &&
@@ -681,12 +669,9 @@ function getBestFloodFillMove(floodFillResults, largestLimited, largestFull) {
 
 // find the closest piece of food to our head
 function foodSearch(data) {
-    console.log('data', data);
     var foodData = data.board.food;
     var distancesToFood = [];
     var closestFood = [];
-
-    console.log('fooddata', foodData);
   
     foodData.forEach(function (object) {
         distancesToFood.push(object);
@@ -718,8 +703,6 @@ function pathToFood(closestFood, data, gridBackup, floodFillResults, bestFloodFi
     if (closestFood[0] === undefined) {
         return undefined;
     }
-
-    console.log('bodydata MANNNNNNN', bodyData);
 
     var path = finder.findPath(bodyData[0].x, bodyData[0].y, closestFood[1].x, closestFood[1].y, gridBackup);
     var checkPossibleMoves = [];

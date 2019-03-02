@@ -14,6 +14,16 @@ router.post('/start', (req, res) => {
     return res.json(data);
 });
 
+router.post('/end', (request, response) => {
+    // NOTE: Any cleanup when a game is complete.
+    return response.json({});
+});
+  
+router.post('/ping', (request, response) => {
+    // Used for checking if this snake is still alive.
+    return response.json({});
+});
+
 
 // handle POST request to '/move'
 router.post('/move', (req, res) => {

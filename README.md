@@ -1,4 +1,10 @@
-# battlesnake-node(js)
+# Defensive Demon Snake
+
+## Strategy
+
+Let's play safe. The defensive demon loves following tails, whether it is its own or the tails of its opponents. It also likes performing flood fills and A stars to find the shortest and optimal path to certain locations.
+
+## Logistics
 
 A simple [BattleSnake AI](https://battlesnake.io) written in Javascript for NodeJS.
 
